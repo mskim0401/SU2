@@ -88,6 +88,23 @@ CDiscAdjVariable::CDiscAdjVariable(su2double* val_solution, unsigned short val_n
   }
 }
 
+//JRH 05022018
+void CDiscAdjVariable::SetBetaFiml(su2double val_beta_fiml) {
+	beta_fiml = val_beta_fiml;
+}
+
+void CDiscAdjVariable::SetBetaFimlGrad(su2double val_beta_fiml_grad) {
+	beta_fiml_grad = val_beta_fiml_grad;
+}
+
+su2double CDiscAdjVariable::GetBetaFiml() {
+	return beta_fiml;
+}
+
+su2double CDiscAdjVariable::GetBetaFimlGrad() {
+	return beta_fiml_grad;
+}
+
 CDiscAdjVariable::~CDiscAdjVariable() {
 
   if (Solution_Direct != NULL) delete [] Solution_Direct;
@@ -97,3 +114,5 @@ CDiscAdjVariable::~CDiscAdjVariable() {
   if (DualTime_Derivative_n != NULL) delete [] DualTime_Derivative_n;
 
 }
+
+

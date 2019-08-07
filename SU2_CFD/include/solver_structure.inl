@@ -386,6 +386,18 @@ inline su2double CSolver::GetTotal_CircumferentialDistortion() { return 0; }
 
 inline su2double CSolver::GetTotal_CpDiff() { return 0; }
 
+inline su2double CSolver::GetTotal_CpDiff_FIML() { return 0;} //JRH 10112017
+
+inline su2double CSolver::GetTotal_ClDiff() {return 0;} //JRH 10112017
+
+inline su2double CSolver::GetTotal_CdDiff() {return 0;} //JRH 10112017
+
+inline su2double CSolver::GetTotal_ClDiff_FIML() {return 0;} //JRH 10112017
+
+inline su2double CSolver::GetTotal_CdDiff_FIML() {return 0;} //JRH 10112017
+
+inline su2double CSolver::GetTotal_Loss() {return 0;} //JRH 04242018
+
 inline su2double CSolver::GetTotal_HeatFluxDiff() { return 0; }
 
 inline su2double CSolver::GetTotal_CFEA() { return 0; }
@@ -403,6 +415,20 @@ inline void CSolver::SetTotal_RadialDistortion(su2double val_distortion) { }
 inline void CSolver::SetTotal_CircumferentialDistortion(su2double val_distortion) { }
 
 inline void CSolver::SetTotal_CpDiff(su2double val_pressure) { }
+
+inline void CSolver::SetTotal_CpDiff_FIML(su2double pressure) { } //JRH 10112017
+
+inline void CSolver::SetTotal_ClDiff(su2double pressure) { } //JRH 10112017
+
+inline void CSolver::SetTotal_CdDiff(su2double pressure) { } //JRH 10112017
+
+inline void CSolver::SetTotal_ClDiff_FIML(su2double pressure) { } //JRH 10112017
+
+inline void CSolver::SetTotal_CdDiff_FIML(su2double pressure) { } //JRH 10112017
+
+inline void CSolver::SetTotal_Loss(su2double val_loss) { } //JRH 04242018
+
+inline void CSolver::SetTotal_SSE(su2double val_SSE) { } //JRH 05102018
 
 inline void CSolver::SetTotal_HeatFluxDiff(su2double val_heat) { }
 
@@ -676,6 +702,12 @@ inline su2double CSolver::GetPressureOut(unsigned short inMarkerTP) { return 0;}
 
 inline su2double CSolver::GetPressureRatio(unsigned short inMarkerTP) { return 0;}
 
+//inline su2double CSolver::GetFimlFeature(unsigned short iFeature, unsigned long iNode) {return 0;} //JRH 02022018 - Return feature
+
+//inline su2double CSolver::SetNumFeatures(unsigned short fnum) {numFeatures = fnum};
+
+//inline short CSolver::GetNumFeatures(void) {return 0;} //JRH 02022018 - Return 0 unless called by turbulent solver that sets feature variables (SA currently)
+
 inline void CSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, 
                    unsigned short val_marker) { }
 
@@ -840,6 +872,8 @@ inline void CSolver::StoreTurboPerformance(CSolver *solver, unsigned short inMar
 
 inline void CSolver::Friction_Forces(CGeometry *geometry, CConfig *config) { }
 
+inline void CSolver::Friction_Forces(CGeometry *geometry, CConfig *config, CSolver *turb_sol) { }
+
 inline void CSolver::Inviscid_DeltaForces(CGeometry *geometry, CSolver **solver_container, CConfig *config) { }
 
 inline void CSolver::Viscous_DeltaForces(CGeometry *geometry, CConfig *config) { }
@@ -951,6 +985,10 @@ inline su2double CSolver::GetFSI_ConvValue(unsigned short val_index) { return 0.
 
 inline void CSolver::RegisterSolution(CGeometry *geometry_container, CConfig *config){}
 
+inline void CSolver::RegisterNNSolution(CGeometry *geometry, CConfig *config) {}; //JRH 05052018
+
+inline void CSolver::ExtractNNAdjoint(CGeometry *geometry, CConfig *config) {}; //JRH 05052018
+
 inline void CSolver::RegisterOutput(CGeometry *geometry_container, CConfig *config){}
 
 inline void CSolver::SetAdjoint_Output(CGeometry *geometry, CConfig *config){}
@@ -964,6 +1002,38 @@ inline void CSolver::SetSurface_Sensitivity(CGeometry *geometry, CConfig *config
 inline void CSolver::SetSensitivity(CGeometry *geometry, CConfig *config){}
 
 inline void CSolver::SetAdj_ObjFunc(CGeometry *geometry, CConfig *config){}
+
+inline su2double CSolver::GetBetaFiml(unsigned long iPoint) {return 0.0;}; //JRH 05032017
+
+inline su2double CSolver::GetBetaFimlGrad(unsigned long iPoint) {return 0.0;}; //JRH 05032017
+
+inline void CSolver::WriteBetaFimlGrad(void) {}; //JRH 07202017
+
+inline void CSolver::SetDES_LengthScale(CSolver** solver, CGeometry *geometry, CConfig *config) { }; //JRH 08092018
+
+inline su2double CSolver::GetEp(unsigned short iLayer, unsigned short iInput, unsigned short iNode) { return 0.0; }; //JRH 10282018
+
+inline void CSolver::WriteNNWeights(void) {}; //JRH 04242018
+
+inline void CSolver::ForwardPropagate(CConfig *config, CSolver **solver_container,CGeometry *geometry) {}; //JRH 04242018
+
+inline void CSolver::FindFeaturesMinMax() {}; //JRH 05112018
+
+inline void CSolver::ComputeEDF(unsigned short nBins) {}; //JRH 15132018
+
+inline su2double CSolver::GetNNGradient(unsigned short iLayer, unsigned long iInput, unsigned long iNode) {return 1.0;}; //JRH 04302018
+
+inline void CSolver::SetAdjointNNSolution(unsigned short iLayer, unsigned long iInput, unsigned long iNode, su2double val_gradient) {}; //JRH 04302018
+
+inline su2double CSolver::GetNNLossGradient(void) {return 1.0;}; //JRH 05102018
+
+inline void CSolver::SetAdjointNNLoss(su2double Val_gradient) {}; //JRH 05102018
+
+inline void CSolver::RegisterWeights(bool input) {}; //JRH 04302018
+
+inline void CSolver::SetWeight(unsigned short iLayer, unsigned long iInput, unsigned long iNode, su2double val_gradient) {}; //05012018
+
+inline su2double CSolver::GetWeight(unsigned short iLayer, unsigned long iInput, unsigned long iNode) {return 0;}; //05012018
 
 inline unsigned long CSolver::SetPrimitive_Variables(CSolver **solver_container, CConfig *config, bool Output) {return 0;}
 
@@ -1198,6 +1268,22 @@ inline su2double CEulerSolver::GetTotal_CircumferentialDistortion() { return Tot
 
 inline su2double CEulerSolver::GetTotal_CpDiff() { return Total_CpDiff; }
 
+inline su2double CEulerSolver::GetTotal_CpDiff_FIML() { return Total_CpDiff_FIML;} //JRH 10112017
+
+inline su2double CEulerSolver::GetTotal_ClDiff() {return Total_ClDiff;} //JRH 10112017
+
+inline su2double CEulerSolver::GetTotal_CdDiff() {return Total_CdDiff;} //JRH 10112017
+
+inline su2double CEulerSolver::GetTotal_ClDiff_FIML() {return Total_ClDiff_FIML;} //JRH 10112017
+
+inline su2double CEulerSolver::GetTotal_CdDiff_FIML() {return Total_CdDiff_FIML;} //JRH 10112017
+
+inline su2double CEulerSolver::GetTotal_Loss() {return Total_Loss;} //JRH 04242018
+
+inline su2double CTurbSASolver::GetTotal_Loss() {return sse;} //JRH 05102018
+
+inline void CTurbSASolver::SetTotal_SSE(su2double val_sse) { sse = val_sse; }
+
 inline su2double CEulerSolver::GetTotal_HeatFluxDiff() { return Total_HeatFluxDiff; }
 
 inline su2double CEulerSolver::GetTotal_CNearFieldOF() { return Total_CNearFieldOF; }
@@ -1213,6 +1299,18 @@ inline void CEulerSolver::SetTotal_RadialDistortion(su2double val_distortion) { 
 inline void CEulerSolver::SetTotal_CircumferentialDistortion(su2double val_distortion) { Total_CircumferentialDistortion = val_distortion; }
 
 inline void CEulerSolver::SetTotal_CpDiff(su2double pressure) { Total_CpDiff = pressure; }
+
+inline void CEulerSolver::SetTotal_CpDiff_FIML(su2double pressure) { Total_CpDiff_FIML = pressure; } //JRH 10112017
+
+inline void CEulerSolver::SetTotal_ClDiff(su2double pressure) { Total_ClDiff = pressure; } //JRH 10112017
+
+inline void CEulerSolver::SetTotal_CdDiff(su2double pressure) { Total_CdDiff = pressure; } //JRH 10112017
+
+inline void CEulerSolver::SetTotal_ClDiff_FIML(su2double pressure) { Total_ClDiff_FIML = pressure; } //JRH 10112017
+
+inline void CEulerSolver::SetTotal_CdDiff_FIML(su2double pressure) { Total_CdDiff_FIML = pressure; } //JRH 10112017
+
+inline void CEulerSolver::SetTotal_Loss(su2double val_loss) { Total_Loss = val_loss; } //JRH 04242018
 
 inline void CEulerSolver::SetTotal_HeatFluxDiff(su2double heat) { Total_HeatFluxDiff = heat; }
 
@@ -1644,9 +1742,33 @@ inline su2double CIncEulerSolver::GetTotal_CMerit() { return Total_CMerit; }
 
 inline su2double CIncEulerSolver::GetTotal_CpDiff() { return Total_CpDiff; }
 
+inline su2double CIncEulerSolver::GetTotal_CpDiff_FIML() { return Total_CpDiff_FIML; }
+
+inline su2double CIncEulerSolver::GetTotal_ClDiff() {return Total_ClDiff;} //JRH 10112017
+
+inline su2double CIncEulerSolver::GetTotal_CdDiff() {return Total_CdDiff;} //JRH 10112017
+
+inline su2double CIncEulerSolver::GetTotal_ClDiff_FIML() {return Total_ClDiff_FIML;} //JRH 10112017
+
+inline su2double CIncEulerSolver::GetTotal_CdDiff_FIML() {return Total_CdDiff_FIML;} //JRH 10112017
+
+inline su2double CIncEulerSolver::GetTotal_Loss() {return Total_Loss;} //JRH 04242018
+
 inline su2double CIncEulerSolver::GetTotal_HeatFluxDiff() { return Total_HeatFluxDiff; }
 
 inline void CIncEulerSolver::SetTotal_CpDiff(su2double pressure) { Total_CpDiff = pressure; }
+
+inline void CIncEulerSolver::SetTotal_CpDiff_FIML(su2double pressure) { Total_CpDiff_FIML = pressure; } //JRH 10112017
+
+inline void CIncEulerSolver::SetTotal_ClDiff(su2double pressure) { Total_ClDiff = pressure; } //JRH 10112017
+
+inline void CIncEulerSolver::SetTotal_CdDiff(su2double pressure) { Total_CdDiff = pressure; } //JRH 10112017
+
+inline void CIncEulerSolver::SetTotal_ClDiff_FIML(su2double pressure) { Total_ClDiff_FIML = pressure; } //JRH 10112017
+
+inline void CIncEulerSolver::SetTotal_CdDiff_FIML(su2double pressure) { Total_CdDiff_FIML = pressure; } //JRH 10112017
+
+inline void CIncEulerSolver::SetTotal_Loss(su2double val_loss) { Total_Loss = val_loss; } //JRH 04242018
 
 inline void CIncEulerSolver::SetTotal_HeatFluxDiff(su2double heat) { Total_HeatFluxDiff = heat; }
 
@@ -1901,4 +2023,8 @@ inline void CTurbSSTSolver::SetFreeStream_Solution(CConfig *config){
     node[iPoint]->SetSolution(1, omega_Inf);
   }
 }
+
+//inline void CTurbSASolver::GetFimlFeature(unsigned short iFeature, unsigned long iNode) {return FimlFeature[iFeature][iNode];} //JRH 02022018
+
+//inline short CTurbSASolver::GetNumFeatures(void) {return numFeatures;} //JRH 02022018 - Return 0 unless called by turbulent solver that sets feature variables (SA currently)
 

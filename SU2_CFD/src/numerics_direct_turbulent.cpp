@@ -507,11 +507,16 @@ CSourcePieceWise_TurbSA::CSourcePieceWise_TurbSA(unsigned short val_nDim, unsign
   incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   rotating_frame = config->GetRotating_Frame();
   transition = (config->GetKind_Trans_Model() == BC);
+  fiml = (config->GetKind_Turb_Model() == SA_FIML); //JRH - Check if doing FIML correction to source term - 04032017
+  fiml_prod = (config->GetKind_SA_Fiml() == PRODUCTION);
+  fiml_kappa = (config->GetKind_SA_Fiml() == KAPPA);
+  fiml_apg = (config->GetKind_SA_Fiml() == APG); //JRH 12012017
+  fiml_apgr = (config->GetKind_SA_Fiml() == APGR); //JEH 12012017
   
   /*--- Spalart-Allmaras closure constants ---*/
   
   cv1_3 = pow(7.1, 3.0);
-  k2    = pow(0.41, 2.0);
+  k2    = pow(0.41, 2.0); //JRH - This is kappa^2??
   cb1   = 0.1355;
   cw2   = 0.3;
   ct3   = 1.2;
@@ -539,7 +544,37 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
 //  BC Transition Model variables
   su2double vmag, rey, re_theta, re_theta_t, re_v;
   su2double tu , nu_cr, nu_t, nu_BC, chi_1, chi_2, gamma_BC, term1, term2, term_exponential;
+  su2double inv_k2_b2_d2 = 1.0;
+  //su2double fiml_scale = 1.0/Volume; //JRH 03282018 - Didn't work :( -> Gave extremely large corrections near leading edge
+  su2double fiml_scale = 1.0;
+  //JRH - 02072018 - Estimate wall shear stress based on Blasius BL at x = 1.0 in order to estimate delta_criterion locally
+  //JRH - Incompressible solver uses Non-Dimenionalized values so need to grab non-dimensional free-stream values - Not Yet Tested for Compressible Solver!! 02262018
+  su2double rho_fs = config->GetDensity_FreeStreamND();
+  su2double v_fsx = config->GetVelocity_FreeStreamND()[0];
+  su2double v_fsy = config->GetVelocity_FreeStreamND()[1];
+  su2double v_fsz = 0.0;
+  if (nDim == 3) v_fsz = config->GetVelocity_FreeStreamND()[2];
+  su2double v_fs = sqrt(v_fsx*v_fsx+v_fsy*v_fsy+v_fsz*v_fsz);
+  su2double mu_fs = config->GetViscosity_FreeStreamND();
+  su2double l_re = config->GetLength_Reynolds()*0.5;
+  su2double rex = rho_fs*v_fs*l_re/mu_fs;
+  //su2double tau_w = 0.664/sqrt(rex)*0.5*rho_fs*v_fs*v_fs; //Blasius (Laminar) Boundary Layer at x = 1.0
+  su2double tau_w = 0.027/pow(rex,1.0/7.0)*rho_fs*v_fs*v_fs; //Prandtl (Turbulent) Boundary Layer at x = 1.0
+  su2double alpha1, alpha2, bigGamma;
+  su2double Sstar; //for SALSA modification 03032019
+  su2double rho_0 = 0.0;
+  su2double dalpha1, dalpha2, dgamma, dbigGamma,dcb1,dcw1;
+  bool jrh_debug = false;
+  bool salsa = config->GetSALSA();
+  //cout << "v_fsx = " << v_fsx << " v_fsy = " << v_fsy << " v_fsz = " << v_fsz << " v_fs =  << " << v_fs << " Rex = " << rex << " tau_w = " << tau_w << " mu_fs= " << mu_fs << " l_re= " << l_re << endl;
 
+  bool apgr_applied = false;
+
+  if (fiml_kappa) {
+	  k2 = pow(0.41*beta_fiml, 2.0);
+	  cw1 = cb1/k2+(1.0+cb2)/sigma;
+	  //cv1_3 = pow(7.1+37.5*(0.41*beta_fiml-0.41), 3.0);
+  }
   if (incompressible) {
     Density_i = V_i[nDim+1];
     Laminar_Viscosity_i = V_i[nDim+3];
@@ -553,6 +588,7 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
   Production      = 0.0;
   Destruction     = 0.0;
   CrossProduction = 0.0;
+  Delta_Criterion = 0.0; //JRH 02072018
   val_Jacobian_i[0][0] = 0.0;
   
   gamma_BC = 0.0;
@@ -575,13 +611,16 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
   
   if (rotating_frame) { Omega += 2.0*min(0.0, StrainMag_i-Omega); }
   
+  wall_dist = dist_i; //JRH 03052018
+
   if (dist_i > 1e-10) {
-    
+
+
     /*--- Production term ---*/
     
     dist_i_2 = dist_i*dist_i;
     nu = Laminar_Viscosity_i/Density_i;
-    Ji = TurbVar_i[0]/nu;
+    Ji = TurbVar_i[0]/nu; //TurbVar_i[0] = nu_tilde
     Ji_2 = Ji*Ji;
     Ji_3 = Ji_2*Ji;
     fv1 = Ji_3/(Ji_3+cv1_3);
@@ -590,13 +629,62 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
     S = Omega;
     inv_k2_d2 = 1.0/(k2*dist_i_2);
     
-    Shat = S + TurbVar_i[0]*fv2*inv_k2_d2;
-    Shat = max(Shat, 1.0e-10);
-    inv_Shat = 1.0/Shat;
+    Sstar = 0.0;
 
+	//SALSA Modification
+	if (salsa) { //NEW CONFIG BOOLEAN OPTION
+	    /*--- Evaluate Sstar ---*/
+
+	    //Sstar = 0.0;
+	    for(iDim=0;iDim<nDim;++iDim){
+	        for(unsigned short jDim=0;jDim<nDim;++jDim){
+	            Sstar+= 0.5*(PrimVar_Grad_i[1+iDim][jDim]+PrimVar_Grad_i[1+jDim][iDim]);}}
+	    for(iDim=0;iDim<nDim;++iDim){
+	        Sstar-= ((1.0/3.0)*PrimVar_Grad_i[1+iDim][iDim]);}
+	    Sstar = sqrt(2.0*Sstar*Sstar);
+
+		alpha1 = pow(1.01*TurbVar_i[0]*inv_k2_d2/Sstar,0.65);
+		alpha2 = max(0.0,pow(1.0-tanh(Ji/68.0),0.65));
+		bigGamma = min(1.25,max(max(alpha1,alpha2),0.75));
+		cb1 = 0.1355*sqrt(bigGamma);
+		cw1 = cb1/k2+(1.0+cb2)/sigma;
+
+	    /* -- Evaluate rho_0 -- */
+	    su2double M = config->GetMach();
+	    su2double gamma_fs = config->GetGamma();
+	    rho_0 = config->GetDensity_FreeStream()*pow(1+0.5*(gamma_fs-1.0)*M*M,1.0/(gamma_fs-1.0));
+
+	    if (jrh_debug) cout << "rho_0 = " << rho_0 << " Sstar = " << Sstar << " cb1 = " << cb1 << " cw1 = " << cw1 << endl;
+	    if (jrh_debug) cout << "M = " << M << " rho = " << config->GetDensity_FreeStream() << " gamma_fs = " << gamma_fs << endl;
+
+	}
+
+    //JRH - Compute Delta Criterion (estimate) = mut*|S|/1.5/tau_w - Note Eddy_Viscosity_i not initialized yet? - 02072018
+    //Delta_Criterion = Eddy_Viscosity_i*StrainMag_i/1.5/tau_w;
+    Delta_Criterion = TurbVar_i[0]*rho_fs*fv1*StrainMag_i/1.5/tau_w;
+
+
+    //cout << "Delta_Criterion = " << Delta_Criterion << " TurbVar_i[0] = " << TurbVar_i[0] << " StrainMag_i = " << StrainMag_i << " tau_w = " << tau_w << " rho_fs=" << rho_fs << " v_fs= " << v_fs << endl;
+
+    if (fiml_apg || fiml_apgr) {
+    	inv_k2_b2_d2 = 1.0/(k2*dist_i_2*pow(beta_fiml,2.0));
+
+    }
+
+    if (salsa) {
+    	Shat = Sstar*(1.0/Ji+fv1);
+    	Shat = max(Shat, 1.0e-10); //NOT in original SA or SALSA SA, copying over...
+    	inv_Shat = 1.0/Shat;
+    }
+    else {
+    //note - S is vorticity magnitude - JRH 02072018
+    	Shat = S + TurbVar_i[0]*fv2*inv_k2_d2;
+    	Shat = max(Shat, 1.0e-10);
+    	inv_Shat = 1.0/Shat;
+    }
 //    Original SA model
 //    Production = cb1*(1.0-ft2)*Shat*TurbVar_i[0]*Volume;
-    
+    gamma_trans = 1.0;
     if (transition) {
 
 //    BC model constants    
@@ -616,16 +704,46 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
       term2 = sqrt(max(nu_BC-nu_cr,0.)/(nu_cr));
       term_exponential = (term1 + term2);
       gamma_BC = 1.0 - exp(-term_exponential);
+      gamma_trans = gamma_BC; //JRH 03052018
+      //JRH - Apply FIML correction to SA Production source term if in FIML mode
+      //JRH - Apply FIML scale factor (hard-coded for now) to
 
-      Production = gamma_BC*cb1*Shat*TurbVar_i[0]*Volume;
+      if (fiml_prod) {
+    	  //cout << "JRH Debugging: In numerics_direct_turbulent.cpp SA Transition Production term fiml= " << fiml << " beta_fiml = " << beta_fiml << endl;
+    	  Production = (1.0+(beta_fiml-1.0)*fiml_scale)*gamma_BC*cb1*Shat*TurbVar_i[0]*Volume;
+      }
+      else
+      {
+    	  //cout << "JRH Debugging: Not applying beta_fiml in SA Transition Model!! fiml= " << fiml << " beta_fiml = " << beta_fiml << endl;
+    	  Production = gamma_BC*cb1*Shat*TurbVar_i[0]*Volume;
+      }
     }
     else {
-      Production = cb1*Shat*TurbVar_i[0]*Volume;
+    	if (fiml_prod) {
+    		//cout << "JRH Debugging: In numerics_direct_turbulent.cpp SA Production term fiml= " << fiml << " beta_fiml = " << beta_fiml << endl;
+    		//Production = beta_fiml*cb1*Shat*TurbVar_i[0]*Volume;
+    		Production = (1.0+(beta_fiml-1.0)*fiml_scale)*cb1*Shat*TurbVar_i[0]*Volume;
+    	}
+    	else {
+    		//cout << "JRH Debugging: Not applying beta_fiml in SA Model!! fiml= " << fiml << " beta_fiml = " << beta_fiml << endl;
+    		Production = cb1*Shat*TurbVar_i[0]*Volume;
+    	}
     }
     
     /*--- Destruction term ---*/
-    
-    r = min(TurbVar_i[0]*inv_Shat*inv_k2_d2,10.0);
+    if (salsa) {
+    	r = 1.6*tanh(0.7*sqrt(rho_0/Density_i)*TurbVar_i[0]*inv_Shat*inv_k2_d2);
+    	k_SALSA= TurbVar_i[0]*Sstar*pow(0.09,-0.5)*Volume; //04042019 - Do we need a *Volume here too? //JRH
+    }
+    else if (!fiml_apg && !apgr_applied) {
+    	r = min(TurbVar_i[0]*inv_Shat*inv_k2_d2,10.0);
+    }
+    //JRH 12062017 r should be = 1.0 in log layer, > 1.0 in APG and near wall, < 1.0 in favorable pressure gradient or free shear flow.
+    if (fiml_apg) r = min(TurbVar_i[0]*inv_Shat*inv_k2_b2_d2,10.0); //JRH 12012017 - modify r term to influence damping term (fw) in
+    if (fiml_apgr && r < 0.5) {
+    	r = min(TurbVar_i[0]*inv_Shat*inv_k2_b2_d2,10.0); //Only modify r if in outer part of BL? JRH 12062017
+    	apgr_applied = true; //Needed below JRH 12062017
+    }
     g = r + cw2*(pow(r,6.0)-r);
     g_6 =  pow(g,6.0);
     glim = pow((1.0+cw3_6)/(g_6+cw3_6),1.0/6.0);
@@ -651,23 +769,56 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
     dfv1 = 3.0*Ji_2*cv1_3/(nu*pow(Ji_3+cv1_3,2.));
     dfv2 = -(1/nu-Ji_2*dfv1)/pow(1.+Ji*fv1,2.);
     if ( Shat <= 1.0e-10 ) dShat = 0.0;
-    else dShat = (fv2+TurbVar_i[0]*dfv2)*inv_k2_d2;
-    
+    else {
+    	if (salsa){
+    		dShat = Sstar*(-1.0/Ji/TurbVar_i[0]+dfv1);
+    	}
+    	else {
+    		dShat = (fv2+TurbVar_i[0]*dfv2)*inv_k2_d2;
+    	}
+    }
     if (transition) {
         val_Jacobian_i[0][0] += gamma_BC*cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
     }
     else {
         val_Jacobian_i[0][0] += cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
     }
-    
+    dcw1 = 0.0;
     /*--- Implicit part, destruction term ---*/
-    
-    dr = (Shat-TurbVar_i[0]*dShat)*inv_Shat*inv_Shat*inv_k2_d2;
-    if (r == 10.0) dr = 0.0;
+    if (salsa) {
+    	// r = 1.6*tanh(0.7*sqrt(rho_0/Density_i)*TurbVar_i[0]*inv_Shat*inv_k2_d2);
+    	dr = 1.6*0.7*sqrt(rho_0/Density_i)*inv_Shat*inv_k2_d2/pow(cosh(0.7*sqrt(rho_0/Density_i)*TurbVar_i[0]*inv_Shat*inv_k2_d2),2.0);
+    	if (bigGamma < 1.25 && bigGamma > 0.75) {
+    		if (alpha1 > alpha2) { //alpha1 active, dcb1 = dalpha1
+    			dcb1 =  0.65*1.01*inv_k2_d2/Sstar*pow(1.01*TurbVar_i[0]*inv_k2_d2/Sstar,-0.35);
+    			dcb1 = 0.1355*0.5*dcb1/sqrt(bigGamma);
+    			dcw1 = dcb1/k2;
+    			val_Jacobian_i[0][0] += dcb1*Shat*TurbVar_i[0]*Volume;
+    		}
+    		else {
+    			if (alpha2 > 0) { //alpha2 active, dcb1 = dalpha2
+    				//alpha2 = max(0.0,pow(1.0-tanh(Ji/68.0),0.65));
+    				dcb1 = -0.65/68.0/nu/pow(cosh(Ji/68.0),2.0)*pow(1.0-tanh(Ji/68.0),-0.35);
+    				dcb1 = 0.1355*0.5*dcb1/sqrt(bigGamma);
+    				dcw1 = dcb1/k2;
+    				val_Jacobian_i[0][0] += dcb1*Shat*TurbVar_i[0]*Volume;
+    			}
+    		}
+    	}
+    }
+    else {
+		if (!fiml_apg) {
+			dr = (Shat-TurbVar_i[0]*dShat)*inv_Shat*inv_Shat*inv_k2_d2;
+		}
+		else dr = (Shat-TurbVar_i[0]*dShat)*inv_Shat*inv_Shat*inv_k2_b2_d2; //JRH 12012017 - FIML APG correction, derivative of r term?
+		if (r == 10.0) dr = 0.0;
+    }
     dg = dr*(1.+cw2*(6.0*pow(r,5.0)-1.0));
     dfw = dg*glim*(1.-g_6/(g_6+cw3_6));
-    val_Jacobian_i[0][0] -= cw1*(dfw*TurbVar_i[0] +  2.0*fw)*TurbVar_i[0]/dist_i_2*Volume;
     
+    if (salsa) val_Jacobian_i[0][0] -= (dcw1*fw*TurbVar_i[0] + dfw*TurbVar_i[0] +  2.0*fw)*TurbVar_i[0]/dist_i_2*Volume;
+    else val_Jacobian_i[0][0] -= cw1*(dfw*TurbVar_i[0] +  2.0*fw)*TurbVar_i[0]/dist_i_2*Volume;
+
   }
 
 //  AD::SetPreaccOut(val_residual[0]);

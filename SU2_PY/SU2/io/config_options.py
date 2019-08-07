@@ -81,7 +81,7 @@ class DEFINITION_DV(ordered_bunch):
         - FFD_CONTROL_POINT_2D ( 15, Scale | Mark. List | FFD_Box_ID, i_Ind, j_Ind, x_Mov, y_Mov )
         - FFD_CAMBER_2D ( 16, Scale | Mark. List | FFD_Box_ID, i_Ind )
         - FFD_THICKNESS_2D ( 17, Scale | Mark. List | FFD_Box_ID, i_Ind )
-        
+        - FIML (18, Scale | Mark. List | val)
     """
     
     def __init__(self,*args,**kwarg):
@@ -127,7 +127,7 @@ class DV_KIND(ordered_bunch):
     - FFD_CONTROL_POINT_2D ( 15, Scale | Mark. List | FFD_Box_ID, i_Ind, j_Ind, x_Mov, y_Mov )
     - FFD_CAMBER_2D ( 16, Scale | Mark. List | FFD_Box_ID, i_Ind )
     - FFD_THICKNESS_2D ( 17, Scale | Mark. List | FFD_Box_ID, i_Ind )
-    
+    - FIML (18 , Scale | Mark. List | val)
     """
   
   def __init__(self,*args,**kwarg):

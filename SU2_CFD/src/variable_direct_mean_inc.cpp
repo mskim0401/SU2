@@ -53,6 +53,9 @@ CIncEulerVariable::CIncEulerVariable(void) : CVariable() {
   nSecondaryVarGrad = 0;
  
   Undivided_Laplacian = NULL;
+
+  beta_fiml = 1.0;
+  beta_fiml_train = 1.0;
  
 }
 
@@ -65,6 +68,9 @@ CIncEulerVariable::CIncEulerVariable(su2double val_pressure, su2double *val_velo
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
   bool windgust = config->GetWind_Gust();
   
+  beta_fiml = 1.0;
+  beta_fiml_train = 1.0;
+
   /*--- Array initialization ---*/
   
   Primitive = NULL;
@@ -182,6 +188,9 @@ CIncEulerVariable::CIncEulerVariable(su2double *val_solution, unsigned short val
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
   bool windgust = config->GetWind_Gust();
   
+  beta_fiml = 1.0;
+  beta_fiml_train = 1.0;
+
   /*--- Array initialization ---*/
   
   Primitive = NULL;
@@ -343,6 +352,12 @@ bool CIncEulerVariable::SetPrimVar(su2double Density_Inf, CConfig *config) {
   
 }
 
+//JRH - Added routine to retrieve beta FIML correction factor - 04012017
+su2double CIncEulerVariable::GetBetaFiml() { return beta_fiml;}
+void CIncEulerVariable::SetBetaFiml(su2double val_beta_fiml) {beta_fiml = val_beta_fiml;}
+su2double CIncEulerVariable::GetBetaFimlTrain() { return beta_fiml_train; }
+void CIncEulerVariable::SetBetaFimlTrain(su2double val_beta_fiml_train) { beta_fiml_train = val_beta_fiml_train; }
+
 CIncNSVariable::CIncNSVariable(void) : CIncEulerVariable() { }
 
 CIncNSVariable::CIncNSVariable(su2double val_pressure, su2double *val_velocity,
@@ -355,6 +370,9 @@ CIncNSVariable::CIncNSVariable(su2double val_pressure, su2double *val_velocity,
   Prandtl_Lam     = config->GetPrandtl_Lam();
   Prandtl_Turb    = config->GetPrandtl_Turb();
   
+  beta_fiml = 1.0;
+  beta_fiml_train = 1.0;
+
 }
 
 CIncNSVariable::CIncNSVariable(su2double *val_solution, unsigned short val_nDim,
@@ -452,4 +470,8 @@ bool CIncNSVariable::SetPrimVar(su2double Density_Inf, su2double Viscosity_Inf, 
   return true;
   
 }
-
+//JRH - Added routine to retrieve beta FIML correction factor - 04012017
+su2double CIncNSVariable::GetBetaFiml() { return beta_fiml;}
+void CIncNSVariable::SetBetaFiml(su2double val_beta_fiml) {beta_fiml = val_beta_fiml;}
+su2double CIncNSVariable::GetBetaFimlTrain() { return beta_fiml_train; }
+void CIncNSVariable::SetBetaFimlTrain(su2double val_beta_fiml_train) { beta_fiml_train = val_beta_fiml_train; }

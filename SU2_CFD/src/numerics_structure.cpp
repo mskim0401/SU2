@@ -87,6 +87,8 @@ CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
 
   l = NULL;
   m = NULL;
+
+  beta_fiml = 1.0;
  
   nDim = val_nDim;
   nVar = val_nVar;

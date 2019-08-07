@@ -61,7 +61,7 @@ void CIntegration::Space_Integration(CGeometry *geometry,
   unsigned short MainSolver = config->GetContainerPosition(RunTime_EqSystem);
   bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
-
+  //cout << "JRH Debugging: In CIntegration::Space_Integration - Calling Flow Residuals" << endl;
   /*--- Compute inviscid residuals ---*/
   
   switch (config->GetKind_ConvNumScheme()) {
@@ -72,16 +72,18 @@ void CIntegration::Space_Integration(CGeometry *geometry,
       solver_container[MainSolver]->Upwind_Residual(geometry, solver_container, numerics[CONV_TERM], config, iMesh);
       break;
   }
-  
+  //cout << "JRH Debugging: In CIntegration::Space_Integration - Viscous Residuals" << endl;
   /*--- Compute viscous residuals ---*/
   
   solver_container[MainSolver]->Viscous_Residual(geometry, solver_container, numerics[VISC_TERM], config, iMesh, iRKStep);
   
 
-  
+  //cout << "JRH Debugging: In CIntegration::Space_Integration - Calling Source Term Residuals" << endl;
   /*--- Compute source term residuals ---*/
 
   solver_container[MainSolver]->Source_Residual(geometry, solver_container, numerics[SOURCE_FIRST_TERM], numerics[SOURCE_SECOND_TERM], config, iMesh);
+  //JRH - Training Variables Set by ^^
+  //Training step for NN here?? JRH 04172018
   
   /*--- Add viscous and convective residuals, and compute the Dual Time Source term ---*/
   

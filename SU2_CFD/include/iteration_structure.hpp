@@ -796,6 +796,8 @@ private:
                                        can be used to compute the gradients with respect
                                        to the geometry variables. */
     ALL_VARIABLES = 3,
+
+    NN_VARIABLES = 4,
   };
 
 

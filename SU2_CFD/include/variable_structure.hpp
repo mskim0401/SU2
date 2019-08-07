@@ -87,7 +87,10 @@ protected:
   unsigned short nSecondaryVar, nSecondaryVarGrad;    /*!< \brief Number of variables of the problem,
                                                        note that this variable cannnot be static, it is possible to
                                                        have different number of nVar in the same problem. */
-  
+  su2double beta_fiml;				/*!< \brief Field Inversion and Machine Learning - FIML - Correction Factor. */
+  su2double beta_fiml_grad;
+  su2double beta_fiml_train;
+  su2double fd; //JRH 08082018 - SA_DDES shielding function, computed in solver_direct_turbulent.cpp SetDES_LengthScale()
 public:
   
   /*!
@@ -832,6 +835,21 @@ public:
    */
   virtual su2double GetEddyViscosity(void);
   
+  virtual su2double GetProduction(void);
+  virtual su2double GetDestruction(void);
+  virtual su2double GetSTildeSA(void);
+  virtual su2double GetChiSA(void);
+  virtual su2double GetDeltaCriterion(void);
+  virtual su2double GetFwSA(void);
+  virtual su2double GetRSA(void);
+  virtual su2double GetStrainMagnitude(void);
+  virtual su2double GetVorticityMagnitude(void);
+  virtual su2double GetGammaTrans(void); //05032018
+  virtual su2double GetWallDist(void); //05032018
+  virtual su2double GetkSALSA(void);
+
+
+
   /*!
    * \brief A virtual member.
    * \return Value of the flow enthalpy.
@@ -1666,6 +1684,51 @@ public:
    */
   virtual void SetmuT(su2double val_muT);
   
+  /*!
+   * \brief Get the value of the beta FIML Correction factor.
+   * \return the value of beta FIML variable.
+   */
+  virtual su2double GetBetaFiml(void); //JRH - Added routine to retrieve beta FIML correction factor - 04012017
+  virtual su2double GetBetaFimlTrain(void); //JRH 04182018
+  /*!
+   * \brief Get the value of the beta FIML Correction factor.
+   * \return the value of beta FIML variable gradient.
+   */
+  virtual su2double GetBetaFimlGrad(void); //JRH - Added routine to retrieve beta FIML correction factor - 04012017
+
+  /*!
+   * \brief Set the value of the beta_fiml correction.
+   * \param[in] val_beta_fiml
+   */
+  virtual void SetBetaFiml(su2double val_beta_fiml); //JRH - Added routine to set the beta FIML correction factor 04242017
+  virtual void SetBetaFimlTrain(su2double val_beta_fiml); //JRH 04182018
+  virtual void SetDES_fd(su2double val_fd); // JRH 08092018
+  virtual su2double GetDES_fd(void); //JRH 08092018
+  virtual void RegisterBeta(bool input); //JRH 05022018
+  virtual void SetAdjointBeta(su2double val_adjoint_beta);//JRH 05022018
+  virtual su2double GetAdjointBeta(void);//JRH 05022018
+
+
+  /*!
+     * \brief Set the value of the beta_fiml correction gradient.
+     * \param[in] val_beta_fiml_grad
+     */
+   virtual void SetBetaFimlGrad(su2double val_beta_fiml_grad); //JRH - Added routine to set the beta FIML correction factor 05032017
+
+   //routines to set values for features for machine learning - JRH 02062018
+   virtual void SetProduction(su2double val_Production);
+   virtual void SetDestruction(su2double val_Destruction);
+   virtual void SetSTildeSA(su2double val_STildeSA);
+   virtual void SetChiSA(su2double val_ChiSA);
+   virtual void SetDeltaCriterion(su2double val_Delta_Criterion);
+   virtual void SetFwSA(su2double val_FwSA);
+   virtual void SetRSA(su2double val_RSA);
+   virtual void SetVorticityMagnitude(su2double val_Omega);
+   virtual void SetStrainMagnitude(su2double val_StrainMag_i);
+   virtual void SetWallDist(su2double val_Wall_Dist);
+   virtual void SetGammaTrans(su2double val_Gamma_Trans);
+   virtual void SetkSALSA(su2double val_k_SALSA);
+
   /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] val_max_lambda - Value of the maximum eigenvalue for the inviscid terms of the PDE.
@@ -3038,6 +3101,15 @@ public:
    * \param[in] Value of the derivatives of the wind gust
    */
   void SetWindGustDer(su2double* val_WindGust);
+
+  su2double GetBetaFiml();
+
+  void SetBetaFiml(su2double val_beta_fiml);
+
+  su2double GetBetaFimlTrain();
+
+  void SetBetaFimlTrain(su2double val_beta_fiml_train);
+
 };
 
 /*!
@@ -3276,6 +3348,14 @@ public:
    */
   bool SetPrimVar(su2double Density_Inf, CConfig *config);
   
+  su2double GetBetaFiml();
+
+  void SetBetaFiml(su2double val_beta_fiml);
+
+  su2double GetBetaFimlTrain();
+
+  void SetBetaFimlTrain(su2double val_beta_fiml_train);
+
 };
 
 /*!
@@ -3440,6 +3520,13 @@ public:
    * \brief Set all the secondary variables (partial derivatives) for compressible flows
    */
   void SetSecondaryVar(CFluidModel *FluidModel);
+
+  su2double GetBetaFiml();
+
+  void SetBetaFiml(su2double val_beta_fiml);
+
+  void SetBetaFimlTrain(su2double val_beta_fiml_train);
+  su2double GetBetaFimlTrain();
 };
 
 /*!
@@ -3538,6 +3625,10 @@ public:
   /*!
    * \brief Set all the primitive variables for incompressible flows
    */
+  su2double GetBetaFiml();
+  void SetBetaFiml(su2double val_beta_fiml);
+  su2double GetBetaFimlTrain();
+  void SetBetaFimlTrain(su2double val_beta_fiml_train);
   bool SetPrimVar(su2double Density_Inf, su2double Viscosity_Inf, su2double eddy_visc, su2double turb_ke, CConfig *config);
   using CVariable::SetPrimVar;
   
@@ -3554,6 +3645,25 @@ class CTurbVariable : public CVariable {
 protected:
   su2double muT;                /*!< \brief Eddy viscosity. */
   su2double *HB_Source;          /*!< \brief Harmonic Balance source term. */
+  //su2double beta_fiml;				/*!< \brief Field Inversion and Machine Learning - FIML - Correction Factor. */
+  //su2double beta_fiml_grad; 	/*!< \brief Variable to store gradient of beta_fiml at each node. */
+  su2double beta_fiml_train; //Variable to store optimizer betas if embedding training in inversion JRH 04182018
+  //JRH - Added Beta to CTurbVariable class so it is accessible to all turbulence models - 03312017
+  //JRH - Added below variables to CTurbVariable class so can output for ML features 02062018
+  su2double Production;
+  su2double Destruction;
+  su2double STildeSA;
+  su2double ChiSA;
+  su2double Delta_Criterion;
+  su2double FwSA;
+  su2double RSA;
+  su2double Strain_Magnitude;
+  su2double Vorticity_Magnitude;
+  su2double wall_dist; //JRH 03052018
+  su2double gamma_trans; //JRH 03052018
+  su2double k_SALSA;
+
+
   
 public:
   /*!
@@ -3570,6 +3680,15 @@ public:
   CTurbVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *config);
   
   /*!
+   * \overload
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nvar - Number of variables of the problem.
+   * \param[in] val_iPoint - Node index required for FIML initialization - JRH 04122017
+   * \param[in] config - Definition of the particular problem.
+   */
+  CTurbVariable(unsigned short val_nDim, unsigned short val_nvar, unsigned short val_iPoint, CConfig *config);
+
+  /*!
    * \brief Destructor of the class.
    */
   virtual ~CTurbVariable(void);
@@ -3585,6 +3704,65 @@ public:
    * \param[in] val_muT - Value of the eddy viscosity.
    */
   void SetmuT(su2double val_muT);
+
+  /*!
+   * \brief Get the value of the beta FIML Correction factor.
+   * \return the value of beta FIML variable.
+   */
+  su2double GetBetaFiml(); //JRH - Added routine to retrieve beta FIML correction factor - 04012017
+  su2double GetBetaFimlTrain(); //JRH - Get training value of beta FIML for neural network - 04182018
+
+  /*!
+   * \brief Get the value of the beta FIML Correction factor gradient.
+   * \return the value of beta FIML variable gradient.
+   */
+  su2double GetBetaFimlGrad(); //JRH - Added routine to retrieve beta_fiml_grad
+  //routines to set values for features for machine learning - JRH 02062018
+  su2double GetProduction();
+  su2double GetDestruction();
+  su2double GetSTildeSA();
+  su2double GetChiSA();
+  su2double GetDeltaCriterion();
+  su2double GetFwSA();
+  su2double GetRSA();
+  su2double GetStrainMagnitude();
+  su2double GetVorticityMagnitude();
+  su2double GetGammaTrans(void);
+  su2double GetWallDist(void);
+  su2double GetkSALSA(void);
+
+  /*!
+   * \brief Set the value of the beta FIML Correction factor.
+   * \param[in] val_beta_fiml - the value of beta FIML variable.
+   */
+  void SetBetaFiml(su2double val_beta_fiml); //JRH - Added routine to set beta FIML correction factor - 04242017
+  void SetBetaFimlTrain(su2double val_beta_fiml_train); //JRH 04182018 - Set value of beta to train NN on
+
+  void SetDES_fd(su2double val_fd); // JRH 08092018
+  su2double GetDES_fd(void); //JRH 08092018
+
+  virtual void RegisterBeta(bool input); //JRH 05022018
+  virtual void SetAdjointBeta(su2double val_adjoint_beta);//JRH 05022018
+  virtual su2double GetAdjointBeta(void);//JRH 05022018
+  /*!
+   * \brief Set the value of the beta FIML Correction factor gradient.
+   * \param[in] val_beta_fiml_grad - the value of beta FIML variable gradient.
+   */
+  void SetBetaFimlGrad(su2double val_beta_fiml_grad);
+
+  //routines to set values for features for machine learning - JRH 02062018
+  void SetProduction(su2double val_production);
+  void SetDestruction(su2double val_destruction);
+  void SetSTildeSA(su2double val_STilde_SA);
+  void SetChiSA(su2double val_Chi_SA);
+  void SetDeltaCriterion(su2double val_Delta_Criterion);
+  void SetFwSA(su2double valFwSA);
+  void SetRSA(su2double val_r_SA);
+  void SetStrainMagnitude(su2double val_StrainMag_i);
+  void SetVorticityMagnitude(su2double val_Omega);
+  void SetGammaTrans(su2double val_Gamma);
+  void SetWallDist(su2double val_Wall_Dist);
+  void SetkSALSA(su2double val_k_SALSA);
 };
 
 /*!
@@ -3612,6 +3790,17 @@ public:
    */
   CTurbSAVariable(su2double val_nu_tilde, su2double val_muT, unsigned short val_nDim, unsigned short val_nvar, CConfig *config);
   
+  /*!
+   * \overload
+   * \param[in] val_nu_tilde - Turbulent variable value (initialization value).
+   * \param[in] val_muT  - The eddy viscosity
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nvar - Number of variables of the problem.
+   * \param[in] val_iPoint - Node index required for FIML initialization - JRH 04122017
+   * \param[in] config - Definition of the particular problem.
+   */
+  CTurbSAVariable(su2double val_nu_tilde, su2double val_muT, unsigned short val_nDim, unsigned short val_nvar, unsigned short val_iPoint, CConfig *config);
+
   /*!
    * \brief Destructor of the class.
    */
@@ -4298,6 +4487,18 @@ public:
   void SetSolution_Direct(su2double *sol);
   
   su2double* GetSolution_Direct();
+
+  su2double GetBetaFimlGrad();
+
+  su2double GetBetaFiml();
+
+  void SetBetaFiml(su2double val_beta_fiml);
+
+  void SetBetaFimlGrad(su2double val_beta_fiml_grad);
+
+//  void SetDES_fd(su2double val_fd); // JRH 08092018
+//  su2double GetDES_fd();
+
 };
 
 

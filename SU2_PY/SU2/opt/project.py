@@ -100,7 +100,8 @@ class Project(object):
     
     def __init__( self, config, state=None , 
                   designs=None, folder='.' ,
-                  warn = True                ):
+                  warn = True, 
+                  config_vector=None          ): #Added config_vec = vector of configs
         
         folder = folder.rstrip('/')+'/'
         if '*' in folder: folder = su2io.next_folder(folder)        
@@ -120,8 +121,9 @@ class Project(object):
         state.find_files(config)
         if 'OUTFLOW_GENERALIZED' in config.OPT_OBJECTIVE:
             state.FILES['DownstreamFunction'] = 'downstream_function.py'
-        if 'MESH' not in state.FILES:
-            raise Exception , 'Could not find mesh file: %s' % config.MESH_FILENAME
+        #JRH - Commented out 4/25/2019
+        #if 'MESH' not in state.FILES:
+        #    raise Exception , 'Could not find mesh file: %s' % config.MESH_FILENAME
         
         self.config  = config      # base config
         self.state   = state       # base state

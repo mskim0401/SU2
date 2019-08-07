@@ -1996,11 +1996,12 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   unsigned short iVar_GridVel = 0, iVar_PressCp = 0, iVar_Lam = 0, iVar_MachMean = 0,
   iVar_ViscCoeffs = 0, iVar_HeatCoeffs = 0, iVar_Sens = 0, iVar_Extra = 0, iVar_Eddy = 0, iVar_Sharp = 0,
   iVar_FEA_Vel = 0, iVar_FEA_Accel = 0, iVar_FEA_Stress = 0, iVar_FEA_Stress_3D = 0,
-  iVar_FEA_Extra = 0, iVar_SensDim = 0;
+  iVar_FEA_Extra = 0, iVar_SensDim = 0, iVar_Fiml = 0;
   unsigned long iPoint = 0, jPoint = 0, iVertex = 0, iMarker = 0;
   su2double Gas_Constant, Mach2Vel, Mach_Motion, RefDensity, RefPressure = 0.0, factor = 0.0;
   
-  su2double *Aux_Frict_x = NULL, *Aux_Frict_y = NULL, *Aux_Frict_z = NULL, *Aux_Heat = NULL, *Aux_yPlus = NULL, *Aux_Sens = NULL;
+  su2double *Aux_Frict_x = NULL, *Aux_Frict_y = NULL, *Aux_Frict_z = NULL, *Aux_Heat = NULL, *Aux_yPlus = NULL, *Aux_Sens = NULL,
+		  *Aux_Beta_Fiml, *Aux_Beta_Fiml_Grad; //JRH 05032017
   
   unsigned short CurrentIndex;
   int *Local_Halo;
@@ -2022,6 +2023,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   bool compressible   = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   bool transition     = (config->GetKind_Trans_Model() == LM);
+  bool transition_BC = (config->GetKind_Trans_Model()== BC); //JRH 05032018
   bool flow           = (( config->GetKind_Solver() == EULER             ) ||
                          ( config->GetKind_Solver() == NAVIER_STOKES     ) ||
                          ( config->GetKind_Solver() == RANS              ) ||
@@ -2029,6 +2031,9 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
                          ( config->GetKind_Solver() == ADJ_NAVIER_STOKES ) ||
                          ( config->GetKind_Solver() == ADJ_RANS          )   );
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
+  bool fiml = (config->GetKind_Turb_Model() == SA_FIML && Kind_Solver == DISC_ADJ_RANS); //If true, output beta_fiml and beta_fiml_grad at each node - 05032017
+  bool fiml_direct = (config->GetKind_Turb_Model() == SA_FIML && Kind_Solver == RANS); //If true, direct solution, only write beta_fiml JRH 11242017
+  bool train_nn = (config->GetTrainNN()); //JRH 04242018 - Whether we trained a Neural Network, output weights if true
   
   unsigned short iDim;
   unsigned short nDim = geometry->GetnDim();
@@ -2073,7 +2078,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   }
   
   nVar_First = solver[FirstIndex]->GetnVar();
-  if (SecondIndex != NONE) nVar_Second = solver[SecondIndex]->GetnVar();
+  if (SecondIndex != NONE) {
+	  nVar_Second = solver[SecondIndex]->GetnVar();
+	  //if (fiml) nVar_Second = nVar_Second+2; //JRH - Increment nVar_Second so we can output beta_fiml and beta_fiml_grad
+  }
   if (ThirdIndex != NONE) nVar_Third = solver[ThirdIndex]->GetnVar();
   nVar_Consv = nVar_First + nVar_Second + nVar_Third;
   nVar_Total = nVar_Consv;
@@ -2119,6 +2127,17 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     if (Kind_Solver == RANS) {
       iVar_Eddy = nVar_Total; nVar_Total += 1;
+      if (fiml_direct) {
+    	  iVar_Fiml = nVar_Total; //JRH 11242017
+    	  nVar_Total += 1; // JRH 11242017 - Beta_Fiml
+    	  nVar_Total += 11; // JRH 02062018 - ML Feature Variables
+    	  if (transition_BC) {
+    		  nVar_Total += 1; //JRH 03052018 - Output Intermittancy
+    	  }
+    	  if (config->GetTrainNN()) {
+    		  nVar_Total += 1; //JRH 05062018 - Output Beta Fiml Train if training NN
+    	  }
+      }
     }
     
     /*--- Add Sharp edges to the restart file ---*/
@@ -2161,6 +2180,11 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         (Kind_Solver == DISC_ADJ_RANS)) {
       iVar_Sens    = nVar_Total; nVar_Total += 1;
       iVar_SensDim = nVar_Total; nVar_Total += nDim;
+      if (fiml) {
+    	  iVar_Fiml = nVar_Total;
+    	  nVar_Total += 2; //Add two auxiliary variables for beta_fiml and beta_fiml_grad at each node - JRH 05032017
+    	  if (rank == MASTER_NODE) cout << "JRH Debugging - In COutput::MergeSolution() adding two to nVar_Total" << endl;
+      }
     }
     
     if (config->GetExtraOutput()) {
@@ -2251,6 +2275,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       (Kind_Solver == DISC_ADJ_NAVIER_STOKES) ||
       (Kind_Solver == DISC_ADJ_RANS)) {
     Aux_Sens = new su2double[geometry->GetnPoint()];
+    if (fiml) {
+    	Aux_Beta_Fiml = new su2double[geometry->GetnPoint()];
+    	Aux_Beta_Fiml_Grad = new su2double[geometry->GetnPoint()];
+    }
   }
   
   /*--- Prepare the receive buffers in the master node only. ---*/
@@ -2859,7 +2887,725 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
           jPoint = (iProcessor+1)*nBuffer_Scalar;
         }
       }
-      
+      if (fiml_direct) { //JRH 11242017
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML VARIABLE OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetBetaFiml();
+  				//Buffer_Send_Var[jPoint] = (solver[TURB_SOL]->node[iPoint]->GetBetaFiml()-1.0)/geometry->node[iPoint]->GetVolume()+1.0;
+
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar+0][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/***********************************************JRH 02072018 - OUTPUT PRODUCTION*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #1 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetProduction();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+1;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END PRODUCTION GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT DESTRUCTION*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #2 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetDestruction();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+2;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END DESTRUCTION GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT STildeSA*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #3 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetSTildeSA();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+3;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END STildeSA GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT ChiSA*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #4 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetChiSA();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+4;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END ChiSA GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT Delta_Criterion*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #5 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetDeltaCriterion();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+5;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END Delta_Criterion GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT FwSA*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #6 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetFwSA();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+6;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END FwSA GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT RSA*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #7 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetRSA();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+7;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END RSA GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT Strain Rate Magnitude*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #8 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetStrainMagnitude();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+8;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END Strain Rate Magnitude GATHERING**************************************************************/
+  			/***********************************************JRH 02072018 - OUTPUT Vorticity Magnitude*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #9 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetVorticityMagnitude();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+9;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END Vorticity Magnitude GATHERING**************************************************************/
+  			/***********************************************JRH 03052018 - OUTPUT Wall Distance*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #10 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetWallDist();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+10;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END Wall Dist GATHERING*************************************************************/
+  			/*******************************************FIML FEATURE #11 OUTPUT - JRH************************************/
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetDES_fd();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+11;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END Shielding Function GATHERING*************************************************
+  			/***********************************************JRH 03052018 - OUTPUT Gamma Transition*********************************************/
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #12 OUTPUT - JRH************************************/
+  			if (transition_BC) {
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetGammaTrans();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0; iVar = iVar_Fiml+12;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END Gamma Transition Gathering*************************************************************/
+  			} //<== if (transition_BC)
+      		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+  			/*--- Loop over this partition to collect the current variable ---*/
+  			/*******************************************FIML FEATURE #13 OUTPUT - JRH************************************/
+  			if (config->GetTrainNN()) {
+  			jPoint = 0;
+  			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+  			  /*--- Check for halos & write only if requested ---*/
+
+  			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+  				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+  				Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetBetaFimlTrain();
+  				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[TURB_SOL]->node[iPoint]->GetBetaFiml() << endl;
+  				//Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+  				jPoint++;
+  			}
+  		}
+  			/*--- Gather the data on the master node. ---*/
+
+  #ifdef HAVE_MPI
+  			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  			//SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+  #else
+  			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+  			//for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+  #endif
+
+  			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+  			if (rank == MASTER_NODE) {
+  			  jPoint = 0;
+  			  if (!transition_BC) iVar = iVar_Fiml+12;
+  			  else iVar = iVar_Fiml+13;
+  			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+  				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+  				  /*--- Get global index, then loop over each variable and store ---*/
+
+  				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+  				  Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+  				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+  				  //Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+  				  jPoint++;
+  				}
+
+  				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+  				jPoint = (iProcessor+1)*nBuffer_Scalar;
+  			  }
+  			}
+  			/********************************************************JRH - END BetaFimlTrain Gathering*************************************************************/
+  			} //<== if (GetTrainNN())
+  		} //<===  if (fiml_direct)
+      if (train_nn && rank == MASTER_NODE) solver[TURB_SOL]->WriteNNWeights();
     }
     
     /*--- Communicate the Sharp Edges ---*/
@@ -3000,7 +3746,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         (Kind_Solver == DISC_ADJ_NAVIER_STOKES) ||
         (Kind_Solver == DISC_ADJ_RANS)) {
       /*--- Loop over this partition to collect the current variable ---*/
-      
+      /*****************************************************************************************************/
       jPoint = 0;
       for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
         
@@ -3035,6 +3781,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       /*--- The master node unpacks and sorts this variable by global index ---*/
       
       if (rank == MASTER_NODE) {
+    	cout << "JRH Debugging: iVar_SensDim = " << iVar_SensDim << endl;
         jPoint = 0; iVar = iVar_SensDim;
         for (iProcessor = 0; iProcessor < size; iProcessor++) {
           for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
@@ -3054,8 +3801,59 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
           jPoint = (iProcessor+1)*nBuffer_Scalar;
         }
       }
+    if (fiml) {
+    		//if (rank == MASTER_NODE) cout << "JRH Debugging: In COutput::MergeSolution - Adding beta_fiml to Data[" << iVar_Fiml << "][jPoint]" << endl;
+			/*--- Loop over this partition to collect the current variable ---*/
+			/*******************************************FIML VARIABLE OUTPUT - JRH************************************/
+			jPoint = 0;
+			for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+			  /*--- Check for halos & write only if requested ---*/
+
+			 if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+				/*--- Load buffers with the skin friction, heat transfer, y+ variables. ---*/
+
+				Buffer_Send_Var[jPoint] = solver[ADJTURB_SOL]->GetBetaFiml(iPoint);
+				//cout << "Buffer_Send_Var[" << jPoint << "] = " << solver[ADJTURB_SOL]->GetBetaFiml(iPoint) << endl;
+				Buffer_Send_Res[jPoint] = solver[ADJTURB_SOL]->GetBetaFimlGrad(iPoint);
+				jPoint++;
+			}
+		}
+			/*--- Gather the data on the master node. ---*/
+
+#ifdef HAVE_MPI
+			SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+			SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+#else
+			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+			for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
+#endif
+
+			/*--- The master node unpacks and sorts this variable by global index ---*/
+
+			if (rank == MASTER_NODE) {
+			  jPoint = 0; iVar = iVar_Fiml;
+			  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+				for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+				  /*--- Get global index, then loop over each variable and store ---*/
+
+				  iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+				  Data[iVar+0][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+				  //cout << "Data[" << iVar+0 << "][" <<iGlobal_Index<<"]=Buffer_Recv_Var["<< jPoint << "]=" << Buffer_Recv_Var[jPoint] << endl;
+				  Data[iVar+1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
+				  jPoint++;
+				}
+
+				/*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+				jPoint = (iProcessor+1)*nBuffer_Scalar;
+			  }
+			}
+		}
+    if (rank == MASTER_NODE) solver[ADJTURB_SOL]->WriteBetaFimlGrad();
     }
-    
     
     /*--- Communicate the Velocities for dynamic FEM problem ---*/
     
@@ -3682,6 +4480,9 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   bool adjoint = config->GetContinuous_Adjoint() || config->GetDiscrete_Adjoint();
   bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+  bool fiml = (config->GetKind_Turb_Model() == SA_FIML && config->GetKind_Solver() == DISC_ADJ_RANS);
+  bool fiml_direct = (config->GetKind_Turb_Model() == SA_FIML && config->GetKind_Solver() == RANS);
+  bool trans_BC = (config->GetKind_Trans_Model() == BC);
 
   /*--- Retrieve filename from config ---*/
   
@@ -3776,6 +4577,11 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"Eddy_Viscosity\"";
       } else
         restart_file << "\t\"<greek>m</greek><sub>t</sub>\"";
+      if (fiml_direct) {
+    	  restart_file << "\t\"<greek>b</greek>\"\t\"Production\"\t\"Destruction\"\t\"S<sub>hat</sub>\"\t\"<greek>X</greek>\"\t\"<greek>d</greek>\"\t\"f<sub>w</sub>\"\t\"r\"\t\"Strain_Mag\"\t\"Vort_Mag\"\t\"wall_dist\"\t\"f<sub>d</sub>\""; //JRH 11242017
+    	  if (trans_BC) restart_file << "\t\"<greek>g</greek>\"";
+    	  if (config->GetTrainNN()) restart_file << "\t\"<greek>b</greek><sub>train</sub>\"";
+      }
     }
     
     if (config->GetWrt_SharpEdges()) {
@@ -3801,6 +4607,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       if (geometry->GetnDim() == 3) {
         restart_file << "\t\"Sensitivity_z\"";
       }
+      if (fiml) restart_file << "\t\"<greek>b</greek>\"\t\"<greek>Db</greek>\""; //JRH 05102017
     }
     
     if (Kind_Solver == FEM_ELASTICITY) {
@@ -3969,12 +4776,12 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config) {
   unsigned short direct_diff = config->GetDirectDiff();
 
   bool thermal = false; /* Flag for whether to print heat flux values */
-
+  bool fiml = false;
   if (config->GetKind_Solver() == RANS or config->GetKind_Solver()  == NAVIER_STOKES) {
     thermal = true;
+    if (config->GetKind_Turb_Model() == SA_FIML) fiml = true;
   }
 
-  
   /*--- Write file name with extension ---*/
   
   string filename = config->GetConv_FileName();
@@ -3998,7 +4805,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config) {
   strcat(cstr, buffer);
   
   ConvHist_file->open(cstr, ios::out);
-  ConvHist_file->precision(15);
+  ConvHist_file->precision(35);
   
   /*--- Begin of the header ---*/
   
@@ -4020,6 +4827,9 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config) {
   char mass_flow_rate[] = ",\"MassFlowRate\"";
   char d_flow_coeff[] = ",\"D(CLift)\",\"D(CDrag)\",\"D(CSideForce)\",\"D(CMx)\",\"D(CMy)\",\"D(CMz)\",\"D(CFx)\",\"D(CFy)\",\"D(CFz)\",\"D(CL/CD)\"";
   char d_engine[] = ",\"D(AeroCDrag)\",\"D(Radial_Distortion)\",\"D(Circumferential_Distortion)\"";
+
+  char fiml_ofs[] = ",\"Cp_Diff_Fiml\",\"Cl_Diff\",\"Cl_Diff_Fiml\",\"Cd_Diff\",\"Cd_Diff_Fiml\"";
+  char nn_loss[] = ",\"Loss\""; //Neural Network training loss - JRH 04242018
 
   /*--- Find the markers being monitored and create a header for them ---*/
   
@@ -4049,6 +4859,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config) {
     case SA:     SPRINTF (turb_resid, ",\"Res_Turb[0]\""); break;
     case SA_NEG: SPRINTF (turb_resid, ",\"Res_Turb[0]\""); break;
     case SST:     SPRINTF (turb_resid, ",\"Res_Turb[0]\",\"Res_Turb[1]\""); break;
+    case SA_FIML:     SPRINTF (turb_resid, ",\"Res_Turb[0]\""); break;
   }
   char adj_turb_resid[]= ",\"Res_AdjTurb[0]\"";
   char wave_resid[]= ",\"Res_Wave[0]\",\"Res_Wave[1]\"";
@@ -4085,6 +4896,8 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config) {
       if (turbulent) ConvHist_file[0] << turb_resid;
       if (aeroelastic) ConvHist_file[0] << aeroelastic_coeff;
       if (output_per_surface) ConvHist_file[0] << monitoring_coeff;
+      if (fiml) ConvHist_file[0] << fiml_ofs; //Fiml OFs placed after force coefficients per surface!! JRH 10132017
+      if (config->GetTrainNN()) ConvHist_file[0] << nn_loss; //Output NN Training loss (like SSE) every iteration after fiml_ofs JRH 04242018
       if (output_1d) ConvHist_file[0] << oneD_outputs;
       if (output_massflow && !output_1d)  ConvHist_file[0]<< mass_flow_rate;
       if (direct_diff != NO_DERIVATIVE) {
@@ -4143,6 +4956,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
   bool output_massflow = (config[val_iZone]->GetKind_ObjFunc() == MASS_FLOW_RATE);
   bool output_comboObj = (config[val_iZone]->GetnObj() > 1);
   unsigned short FinestMesh = config[val_iZone]->GetFinestMesh();
+  bool fiml = (config[val_iZone]->GetKind_Turb_Model() == SA_FIML); //JRH 10132017
   
   int rank;
 #ifdef HAVE_MPI
@@ -4196,7 +5010,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     adjoint_coeff[1000], flow_resid[1000], adj_flow_resid[1000], turb_resid[1000], trans_resid[1000],
     adj_turb_resid[1000], wave_coeff[1000],
     heat_coeff[1000], fem_coeff[1000], wave_resid[1000], heat_resid[1000], combo_obj[1000],
-    fem_resid[1000], end[1000], oneD_outputs[1000], massflow_outputs[1000], d_direct_coeff[1000];
+    fem_resid[1000], end[1000], oneD_outputs[1000], massflow_outputs[1000], d_direct_coeff[1000], fiml_outputs[10000], nn_outputs[1000];
 
     su2double dummy = 0.0, *Coord;
     unsigned short iVar, iMarker_Monitoring;
@@ -4256,6 +5070,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     OneD_FluxAvgPress = 0.0, OneD_FluxAvgDensity = 0.0, OneD_FluxAvgVelocity = 0.0, OneD_FluxAvgEntalpy = 0.0,
     Total_ComboObj=0.0, Total_AeroCD = 0.0, Total_RadialDistortion = 0.0, Total_CircumferentialDistortion = 0.0,
     Ave_Total_RadialDistortion = 0.0, Ave_Total_CircumferentialDistortion = 0.0;
+    su2double Total_CpDiff_Fiml = 0.0, Total_ClDiff = 0.0, Total_ClDiff_Fiml = 0.0, Total_CdDiff = 0.0, Total_CdDiff_Fiml = 0.0; //JRH 10132017
+    su2double Total_NN_Loss;
     
     /*--- Initialize variables to store information from all zone for turboperformance (direct solution) ---*/
     
@@ -4324,6 +5140,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         case SA:     nVar_Turb = 1; break;
         case SA_NEG: nVar_Turb = 1; break;
         case SST:    nVar_Turb = 2; break;
+        case SA_FIML: nVar_Turb = 1; break;
       }
     }
     if (transition) nVar_Trans = 2;
@@ -4342,6 +5159,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         case SA:     nVar_AdjTurb = 1; break;
         case SA_NEG: nVar_AdjTurb = 1; break;
         case SST:    nVar_AdjTurb = 2; break;
+        case SA_FIML: nVar_AdjTurb = 1; break;
       }
     }
     
@@ -4493,6 +5311,19 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
           }
         }
         
+        if (fiml) {
+        	//Get values for new objective functions - JRH 10132017
+        	Total_CpDiff_Fiml = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CpDiff_FIML();
+        	Total_ClDiff = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_ClDiff();
+        	Total_CdDiff = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CdDiff();
+        	Total_ClDiff_Fiml = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_ClDiff_FIML();
+        	Total_CdDiff_Fiml = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CdDiff_FIML();
+        }
+
+        if (config[val_iZone]->GetTrainNN()) {
+        	Total_NN_Loss = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_Loss();
+        }
+
         if (turbo) {
           /*--- Loop over the nMarker of turboperformance and get the desired values ---*/
           for (iMarker_Monitoring = 0; iMarker_Monitoring < config[ZONE_0]->Get_nMarkerTurboPerf(); iMarker_Monitoring++) {
@@ -4729,7 +5560,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
                        Total_CMy, Total_CMz, Total_CFx, Total_CFy, Total_CFz, Total_CEff, Total_CMerit, Total_CT, Total_CQ);
             if (inv_design) {
               Total_CpDiff  = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CpDiff();
-              SPRINTF (direct_coeff, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e", Total_CL, Total_CD, Total_CSF, Total_CMx, Total_CMy, Total_CMz, Total_CFx, Total_CFy, Total_CFz, Total_CEff, Total_CpDiff);
+              SPRINTF (direct_coeff, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.25e", Total_CL, Total_CD, Total_CSF, Total_CMx, Total_CMy, Total_CMz, Total_CFx, Total_CFy, Total_CFz, Total_CEff, Total_CpDiff);
             }
 
 
@@ -4747,7 +5578,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
                           Total_CMy, Total_CMz, Total_CFx, Total_CFy, Total_CFz, Total_CEff, Total_Heat, Total_MaxHeat, Total_CMerit, Total_CT, Total_CQ);
               if (inv_design) {
                 Total_CpDiff  = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CpDiff();
-                SPRINTF (direct_coeff, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e", Total_CL, Total_CD, Total_CSF, Total_CMx, Total_CMy, Total_CMz, Total_CFx, Total_CFy, Total_CFz, Total_CEff, Total_Heat, Total_MaxHeat, Total_CpDiff, Total_HeatFluxDiff);
+                SPRINTF (direct_coeff, ", %14.25e, %14.25e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.25e, %14.25e", Total_CL, Total_CD, Total_CSF, Total_CMx, Total_CMy, Total_CMz, Total_CFx, Total_CFy, Total_CFz, Total_CEff, Total_Heat, Total_MaxHeat, Total_CpDiff, Total_HeatFluxDiff);
               }
             }
             
@@ -4807,7 +5638,22 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               }
             }
             
+            if (fiml) {
+            	//char fiml_ofs[] = ",\"Cp_Diff_Fiml\",\"Cl_Diff\",\"Cl_Diff_Fiml\",\"Cd_Diff\",\Cd_Diff_Fiml\"";
+              	//Get values for new objective functions - JRH 10132017
+                //	Total_CpDiff_Fiml = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CpDiff_FIML();
+                //	Total_ClDiff = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_ClDiff();
+                //	Total_CdDiff = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CdDiff();
+                //	Total_ClDiff_Fiml = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_ClDiff_FIML();
+                //	Total_CdDiff_Fiml = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_CdDiff_FIML();
+
+            	SPRINTF (fiml_outputs, ", %14.25e, %14.25e, %14.25e, %14.25e, %14.25e", Total_CpDiff_Fiml, Total_ClDiff, Total_ClDiff_Fiml, Total_CdDiff, Total_CdDiff_Fiml);
+            }
             
+            if (config[val_iZone]->GetTrainNN()) { //JRH 04242018
+            	SPRINTF (nn_outputs, ", %14.25e",Total_NN_Loss);
+            }
+
             /*--- Flow residual ---*/
             if (nDim == 2) {
               if (compressible) SPRINTF (flow_resid, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e", log10 (residual_flow[0]), log10 (residual_flow[1]), log10 (residual_flow[2]), log10 (residual_flow[3]), dummy);
@@ -5195,6 +6041,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               case SA:     cout << "       Res[nu]"; break;
               case SA_NEG: cout << "       Res[nu]"; break;
               case SST:     cout << "     Res[kine]" << "     Res[omega]"; break;
+              case SA_FIML:     cout << "       Res[nu]"; break;
             }
             
             if (transition) { cout << "      Res[Int]" << "       Res[Re]"; }
@@ -5359,6 +6206,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             //            if (fluid_structure) ConvHist_file[0] << fea_resid;
             if (aeroelastic) ConvHist_file[0] << aeroelastic_coeff;
             if (output_per_surface) ConvHist_file[0] << monitoring_coeff;
+            if (fiml) ConvHist_file[0] << fiml_outputs; // JRH 10132017
+            if (config[val_iZone]->GetTrainNN()) ConvHist_file[0] << nn_outputs; //JRH 04242018
             if (output_1d) ConvHist_file[0] << oneD_outputs;
             if (output_massflow && !output_1d) ConvHist_file[0] << massflow_outputs;
             if (direct_diff != NO_DERIVATIVE) ConvHist_file[0] << d_direct_coeff;
@@ -5425,6 +6274,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             ConvHist_file[0] << begin << direct_coeff << flow_resid << turb_resid;
             if (aeroelastic) ConvHist_file[0] << aeroelastic_coeff;
             if (output_per_surface) ConvHist_file[0] << monitoring_coeff;
+            if (fiml) ConvHist_file[0] << fiml_outputs; // JRH 10132017
+            if (config[val_iZone]->GetTrainNN()) ConvHist_file[0] << nn_outputs;
             if (output_1d) ConvHist_file[0] << oneD_outputs;
             if (output_massflow && !output_1d) ConvHist_file[0] << massflow_outputs;
             if (direct_diff != NO_DERIVATIVE) ConvHist_file[0] << d_direct_coeff;
@@ -7932,7 +8783,8 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
   string text_line, surfCp_filename;
   ifstream Surface_file;
   char buffer[50], cstr[200];
-  
+  bool jrh_debug = false;
+  if (jrh_debug) cout << "JRH: In COutput::SetCp_InverseDesign" << endl;
   
   nPointLocal = geometry->GetnPoint();
 #ifdef HAVE_MPI
@@ -7977,9 +8829,12 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
   
   /*--- Prepare to read the surface pressure files (CSV) ---*/
   
+
   surfCp_filename = "TargetCp";
   strcpy (cstr, surfCp_filename.c_str());
   
+
+
   /*--- Write file name with extension if unsteady or steady ---*/
   
   if ((config->GetUnsteady_Simulation() && config->GetWrt_Unsteady()) ||
@@ -7990,19 +8845,23 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
     if ((SU2_TYPE::Int(iExtIter) >= 1000) && (SU2_TYPE::Int(iExtIter) < 10000)) SPRINTF (buffer, "_0%d.dat",    SU2_TYPE::Int(iExtIter));
     if (SU2_TYPE::Int(iExtIter) >= 10000) SPRINTF (buffer, "_%d.dat", SU2_TYPE::Int(iExtIter));
   }
-  else
-    SPRINTF (buffer, ".dat");
-  
+  else {
+	  if (config->GetMultiMesh()) {
+		  SPRINTF (buffer, "_%d.dat", SU2_TYPE::Int(config->GetConfigNum()));
+	  }
+	  else  SPRINTF (buffer, ".dat");
+  }
+
   strcat (cstr, buffer);
-  
+
   /*--- Read the surface pressure file ---*/
   
   string::size_type position;
   
   Surface_file.open(cstr, ios::in);
-  
+  if (jrh_debug) cout << "JRH: Attempting to open " << cstr << endl;
   if (!(Surface_file.fail())) {
-    
+	  if (jrh_debug) cout << "JRH: Opened " << cstr << endl;
     getline(Surface_file, text_line);
     
     while (getline(Surface_file, text_line)) {
@@ -8014,7 +8873,7 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
       
       if (geometry->GetnDim() == 2) point_line >> iPoint >> XCoord >> YCoord >> Pressure >> PressureCoeff;
       if (geometry->GetnDim() == 3) point_line >> iPoint >> XCoord >> YCoord >> ZCoord >> Pressure >> PressureCoeff;
-      
+      //if (jrh_debug) cout << "JRH Reading TargetCp.dat iPoint = " << iPoint << " PressureCoeff = " << PressureCoeff << endl;
       if (PointInDomain[iPoint]) {
         
         /*--- Find the vertex for the Point and Marker ---*/
@@ -8023,6 +8882,7 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
         iVertex = Point2Vertex[iPoint][1];
         
         solver_container->SetCPressureTarget(iMarker, iVertex, PressureCoeff);
+        if (jrh_debug) cout << "JRH Debugging: In output_structure.cpp SetCp_InverseDesign() iPoint = " << iPoint << " iMarker = " << iMarker << " iVertex = " << iVertex << " PressureCoeff = " << PressureCoeff << endl;
         
       }
       
@@ -8035,6 +8895,8 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
   /*--- Compute the pressure difference ---*/
   
   PressDiff = 0.0;
+
+  bool avg_Cp = config->GetCp_avg();
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
     Boundary   = config->GetMarker_All_KindBC(iMarker);
     
@@ -8049,12 +8911,28 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
         Cp = solver_container->GetCPressure(iMarker, iVertex);
         CpTarget = solver_container->GetCPressureTarget(iMarker, iVertex);
         
+
         Area = 0.0;
         for (iDim = 0; iDim < geometry->GetnDim(); iDim++)
           Area += Normal[iDim]*Normal[iDim];
         Area = sqrt(Area);
-        
-        PressDiff += Area * (CpTarget - Cp) * (CpTarget - Cp);
+
+        if (CpTarget != 0.0) { //JRH - Stock SU2 uses all markers?? How does that make any sense??? Changed to just markers being monitored JRH 11152017
+		//Changed from "Monitoring" to "Desigining" Since that is actually the marker we care about //JRH 02062019
+        	//Added code so don't sum if CpTarget=0 as a hack. Marker adds points and no way to set those Cps with TargetCp.dat so they are assigned 0
+		//Maybe 'Marder_Designing' Only Works in serial? Markers renamed for MPI?? 03082018
+        	if (config->GetKind_Turb_Model() == SA_FIML) { //JRH - Experimenting with different OFs - 10022017
+			//Added normalization by CpTarget because large difference in scales in CpTarget for hypersonic test cases. 03062019
+        		if (avg_Cp) PressDiff += Area * (CpTarget - Cp) * (CpTarget - Cp)/(CpTarget*CpTarget);
+        		else PressDiff += Area * (CpTarget - Cp) * (CpTarget - Cp);
+		}
+		else {
+    		if (avg_Cp) PressDiff += Area * (CpTarget - Cp) * (CpTarget - Cp)/(CpTarget*CpTarget);
+    		else PressDiff += Area * (CpTarget - Cp) * (CpTarget - Cp);
+		}
+        	if (jrh_debug) cout << "JRH Debugging: Retrieved iMarker = " << iMarker << " iVertex = " << iVertex << " Cp = " << Cp << " Cp_Target = " << CpTarget << endl;
+
+		}
       }
       
     }
@@ -8065,6 +8943,20 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
   SU2_MPI::Allreduce(&MyPressDiff, &PressDiff, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #endif
   
+  //If we need to, add weight factor to penalize for FIML designs far away from baseline (JRH 10112017)
+  if (config->GetKind_Turb_Model() == SA_FIML) {
+	  su2double lambda = config->GetLambdaFiml();
+	  su2double fiml_diff = 0.0;
+	  //su2double loss = solver_container->GetTotal_Loss();
+	 //su2double lambda_loss = config->GetLambdaLossFiml();
+	  for (unsigned long iDV = 0; iDV < config->GetnDV() ; iDV++) {
+		  su2double this_dv = config->GetDV_Value(iDV,0);
+		  fiml_diff += this_dv*this_dv;
+	  }
+	  //solver_container->SetTotal_CpDiff_FIML(PressDiff+lambda*fiml_diff+lambda_loss*loss);
+	  solver_container->SetTotal_CpDiff_FIML(PressDiff+0.5*lambda*fiml_diff);
+  }
+  else solver_container->SetTotal_CpDiff_FIML(PressDiff); //JRH - Just set to normal pressure diff if not FIML case (needed for output I think) 10132017
   /*--- Update the total Cp difference coeffient ---*/
   
   solver_container->SetTotal_CpDiff(PressDiff);
@@ -10452,14 +11344,19 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Aux_Heat[iPoint]    = 0.0;
       Aux_yPlus[iPoint]   = 0.0;
     }
+    su2double *Normal, Area; //JRH 04062019 Testing Heatflux Theory
     for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
       if (config->GetMarker_All_Plotting(iMarker) == YES) {
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+
+          Normal = geometry->vertex[iMarker][iVertex]->GetNormal(); //JRH 04062019 Testing Heatflux Theory
+          Area = 0.0; for (iDim = 0; iDim < nDim; iDim++) Area += Normal[iDim]*Normal[iDim]; Area = sqrt(Area);
+
           Aux_Frict_x[iPoint] = solver[FLOW_SOL]->GetCSkinFriction(iMarker, iVertex, 0);
           Aux_Frict_y[iPoint] = solver[FLOW_SOL]->GetCSkinFriction(iMarker, iVertex, 1);
           if (geometry->GetnDim() == 3) Aux_Frict_z[iPoint] = solver[FLOW_SOL]->GetCSkinFriction(iMarker, iVertex, 2);
-          Aux_Heat[iPoint] = solver[FLOW_SOL]->GetHeatFlux(iMarker, iVertex);
+          Aux_Heat[iPoint] = solver[FLOW_SOL]->GetHeatFlux(iMarker, iVertex); //JRH 04062019 Testing Heatflux Theory (Added /Area)
           Aux_yPlus[iPoint] = solver[FLOW_SOL]->GetYPlus(iMarker, iVertex);
         }
       }

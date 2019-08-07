@@ -153,8 +153,8 @@ int main(int argc, char *argv[]) {
   if (rank == MASTER_NODE) cout << "Identify edges and vertices." <<endl;
   geometry_container[ZONE_0]->SetEdges(); geometry_container[ZONE_0]->SetVertex(config_container[ZONE_0]);
   
-  if (config_container[ZONE_0]->GetDesign_Variable(0) != NO_DEFORMATION) {
-    
+  if (config_container[ZONE_0]->GetDesign_Variable(0) != NO_DEFORMATION && config_container[ZONE_0]->GetDesign_Variable(0) != FIML) {
+    //JRH - 04122017 - Mirroring options of NO_DEFORMATION for new DV FIML
     /*--- Compute center of gravity ---*/
     
     if (rank == MASTER_NODE) cout << "Computing centers of gravity." << endl;
@@ -257,12 +257,12 @@ int main(int argc, char *argv[]) {
   output = new COutput();
   
   bool NewFile = false;
-  if (config_container[ZONE_0]->GetDesign_Variable(0) == NO_DEFORMATION) NewFile = true;
-  
+  if (config_container[ZONE_0]->GetDesign_Variable(0) == NO_DEFORMATION || config_container[ZONE_0]->GetDesign_Variable(0) == FIML) NewFile = true;
+  //JRH - New DV FIML also does not deform mesh so mirror options of NO_DEFORMATION - 04122017
   output->SetMesh_Files(geometry_container, config_container, SINGLE_ZONE, NewFile, true);
   
-  if (config_container[ZONE_0]->GetDesign_Variable(0) != NO_DEFORMATION) {
-    
+  if (config_container[ZONE_0]->GetDesign_Variable(0) != NO_DEFORMATION && config_container[ZONE_0]->GetDesign_Variable(0) != FIML) {
+	  //JRH - New DV FIML also does not deform mesh so mirror options of NO_DEFORMATION - 04122017
     /*--- Write the the free-form deformation boxes after deformation. ---*/
     
     if (rank == MASTER_NODE) cout << "Adding any FFD information to the SU2 file." << endl;

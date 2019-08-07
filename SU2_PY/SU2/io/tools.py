@@ -181,6 +181,7 @@ def get_headerMap():
         to optimization problem function names
     """
     # header name to config file name map
+    #JRH - This must be output in the history file!! - New OFs must be output to be used!!
     map_dict = { "Iteration"       : "ITERATION"               ,
                  "CLift"           : "LIFT"                    ,
                  "CDrag"           : "DRAG"                    ,
@@ -223,7 +224,12 @@ def get_headerMap():
                  "D(CFy)"          : "D_FORCE_Y"               ,
                  "D(CFz)"          : "D_FORCE_Z"               ,
                  "D(CL/CD)"        : "D_EFFICIENCY"            ,
-                 "ComboObj"        : "COMBO"}
+                 "ComboObj"        : "COMBO",
+                 "Cl_Diff_Fiml" : "INVERSE_DESIGN_LIFT_FIML",
+                 "Cp_Diff_Fiml" : "INVERSE_DESIGN_PRESSURE_FIML",
+                 "Cl_Diff" :  "INVERSE_DESIGN_LIFT",
+                 "Cd_Diff"       : "INVERSE_DESIGN_DRAG",
+                 "Cd_Diff_Fiml"  : "INVERSE_DESIGN_DRAG_FIML"                 }
     
     return map_dict
 
@@ -262,9 +268,14 @@ optnames_aero = [ "LIFT"                    ,
                   "TOTAL_HEATFLUX"          ,
                   "MAXIMUM_HEATFLUX"        ,
                   "AERO_DRAG"               ,
-                  "RADIAL_DISTORTION"              ,
+                  "RADIAL_DISTORTION"       ,
                   "CIRCUMFERENTIAL_DISTORTION"              ,
-                  "COMBO"]
+                  "COMBO" ,
+                  "INVERSE_DESIGN_LIFT_FIML" ,
+                  "INVERSE_DESIGN_PRESSURE_FIML" ,
+                  "INVERSE_DESIGN_LIFT" ,
+                  "INVERSE_DESIGN_DRAG" ,
+                  "INVERSE_DESIGN_DRAG_FIML" ]
 #: optnames_aero
 
 optnames_stab = [ "D_LIFT_D_ALPHA"               ,
@@ -490,9 +501,14 @@ def get_adjointSuffix(objective_function=None):
                  "OUTFLOW_GENERALIZED"     : "chn"       ,
                  "FREE_SURFACE"            : "fs"        ,
                  "AERO_DRAG"               : "acd"       ,
-                 "RADIAL_DISTORTION"              : "rdis"       ,
-                 "CIRCUMFERENTIAL_DISTORTION"              : "cdis"       ,
-                 "COMBO"                   : "combo"}
+                 "RADIAL_DISTORTION"       : "rdis"      ,
+                 "CIRCUMFERENTIAL_DISTORTION"     : "cdis"         ,
+                 "COMBO"                          : "combo"        ,
+                 "INVERSE_DESIGN_PRESSURE_FIML"   : "invpressfiml" ,
+                 "INVERSE_DESIGN_LIFT"     : "invcl"     ,
+                 "INVERSE_DESIGN_LIFT_FIML"       : "invcclfiml"   ,
+                 "INVERSE_DESIGN_DRAG"     : "invcd"     ,
+                 "INVERSE_DESIGN_DRAG_FIML"       : "invcdfiml" }
     
     # if none or false, return map
     if not objective_function:
@@ -559,7 +575,8 @@ def get_dvMap():
                19  : "CUSTOM"                ,
                20  : "CST"                   ,
                101 : "ANGLE_OF_ATTACK"       ,
-               102 : "FFD_ANGLE_OF_ATTACK"                    }
+               102 : "FFD_ANGLE_OF_ATTACK"   ,
+               103 : "FIML"                           }
     
     return dv_map
 
@@ -819,7 +836,8 @@ def get_specialCases(config):
                           '1D_OUTPUT'                        ,
                           'INV_DESIGN_CP'                    ,
                           'INV_DESIGN_HEATFLUX'              ,
-                          'OUTFLOW_GENERALIZED'                ]
+                          'OUTFLOW_GENERALIZED'              ,
+                          'TRAIN_NN']
     
     special_cases = []
     for key in all_special_cases:
@@ -831,10 +849,10 @@ def get_specialCases(config):
     if config.get('UNSTEADY_SIMULATION','NO') != 'NO':
         special_cases.append('UNSTEADY_SIMULATION')
      
-    # no support for more than one special case
-    if len(special_cases) > 1:
-        error_str = 'Currently cannot support ' + ' and '.join(special_cases) + ' at once'
-        raise Exception(error_str)   
+    # no support for more than one special case - Commented this out - JRH
+    #if len(special_cases) > 1:
+    #    error_str = 'Currently cannot support ' + ' and '.join(special_cases) + ' at once'
+    #    raise Exception(error_str)   
     
     if (config['WRT_SOL_FREQ'] != 1) and ('WRT_UNSTEADY' in special_cases):
         raise Exception('Must set WRT_SOL_FREQ= 1 for WRT_UNSTEADY= YES')
@@ -846,6 +864,9 @@ def get_specialCases(config):
     # Special case for rotating frame
     if config.has_key('GRID_MOVEMENT_KIND') and config['GRID_MOVEMENT_KIND'] == 'ROTATING_FRAME':
         special_cases.append('ROTATING_FRAME')
+    
+    if config.has_key('TRAIN_NN') :
+        special_cases.append('TRAIN_NN')
         
     return special_cases
 
@@ -968,39 +989,75 @@ def restart2solution(config,state={}):
         direct or adjoint is read from config
         adjoint objective is read from config
     """
-
-    # direct solution
-    if config.MATH_PROBLEM == 'DIRECT':
-        restart  = config.RESTART_FLOW_FILENAME
-        solution = config.SOLUTION_FLOW_FILENAME        
-        # expand unsteady time
-        restarts  = expand_time(restart,config)
-        solutions = expand_time(solution,config)
-        # move
-        for res,sol in zip(restarts,solutions):
-            shutil.move( res , sol )
-        # update state
-        if state: state.FILES.DIRECT = solution
+    if config.NUM_CASES == 0 :
+        # direct solution
+        if config.MATH_PROBLEM == 'DIRECT':
+            restart  = config.RESTART_FLOW_FILENAME
+            solution = config.SOLUTION_FLOW_FILENAME        
+            # expand unsteady time
+            restarts  = expand_time(restart,config)
+            solutions = expand_time(solution,config)
+            # move
+            for res,sol in zip(restarts,solutions):
+                shutil.move( res , sol )
+            # update state
+            if state: state.FILES.DIRECT = solution
+            
+        # adjoint solution
+        elif any([config.MATH_PROBLEM == 'CONTINUOUS_ADJOINT', config.MATH_PROBLEM == 'DISCRETE_ADJOINT']):
+            restart  = config.RESTART_ADJ_FILENAME
+            solution = config.SOLUTION_ADJ_FILENAME           
+            # add suffix
+            func_name = config.OBJECTIVE_FUNCTION
+            suffix    = get_adjointSuffix(func_name)
+            restart   = add_suffix(restart,suffix)
+            solution  = add_suffix(solution,suffix)
+            # expand unsteady time
+            restarts  = expand_time(restart,config)
+            solutions = expand_time(solution,config)        
+            # move
+            for res,sol in zip(restarts,solutions):
+                shutil.move( res , sol )
+            # udpate state
+            ADJ_NAME = 'ADJOINT_' + func_name
+            if state: state.FILES[ADJ_NAME] = solution
+            
+        else:
+            raise Exception, 'unknown math problem'
+    else : #MULTIPLE CONFIGS
+        # direct solution
+        if config.MATH_PROBLEM == 'DIRECT':
+            restart  = config.RESTART_FLOW_FILENAME
+            solution = add_suffix(config.SOLUTION_FLOW_FILENAME,config.CONFIG_I)
+            # expand unsteady time
+            restarts  = expand_time(restart,config)
+            solutions = expand_time(solution,config)
+            # move
+            for res,sol in zip(restarts,solutions):
+                shutil.move( res , sol )
+            # update state
         
-    # adjoint solution
-    elif any([config.MATH_PROBLEM == 'CONTINUOUS_ADJOINT', config.MATH_PROBLEM == 'DISCRETE_ADJOINT']):
-        restart  = config.RESTART_ADJ_FILENAME
-        solution = config.SOLUTION_ADJ_FILENAME           
-        # add suffix
-        func_name = config.OBJECTIVE_FUNCTION
-        suffix    = get_adjointSuffix(func_name)
-        restart   = add_suffix(restart,suffix)
-        solution  = add_suffix(solution,suffix)
-        # expand unsteady time
-        restarts  = expand_time(restart,config)
-        solutions = expand_time(solution,config)        
-        # move
-        for res,sol in zip(restarts,solutions):
-            shutil.move( res , sol )
-        # udpate state
-        ADJ_NAME = 'ADJOINT_' + func_name
-        if state: state.FILES[ADJ_NAME] = solution
-        
-    else:
-        raise Exception, 'unknown math problem'
+            if state: state.FILES.DIRECT = solution
+            
+        # adjoint solution
+        elif any([config.MATH_PROBLEM == 'CONTINUOUS_ADJOINT', config.MATH_PROBLEM == 'DISCRETE_ADJOINT']):
+            restart  = config.RESTART_ADJ_FILENAME
+            solution = config.SOLUTION_ADJ_FILENAME           
+            # add suffix
+            func_name = config.OBJECTIVE_FUNCTION
+            suffix    = get_adjointSuffix(func_name)
+            restart   = add_suffix(restart,suffix)
+            solution  = add_suffix(solution,suffix)
+            # expand unsteady time
+            restarts  = expand_time(restart,config)
+            solutions = expand_time(solution,config)        
+            # move
+            for res,sol in zip(restarts,solutions):
+                shutil.move( res , sol )
+            # udpate state
+            ADJ_NAME = 'ADJOINT_' + func_name
+            if state: state.FILES[ADJ_NAME] = solution
+            
+        else:
+            raise Exception, 'unknown math problem'        
 

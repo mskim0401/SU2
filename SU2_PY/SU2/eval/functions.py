@@ -116,6 +116,10 @@ def function( func_name, config, state=None ):
             sign = su2io.get_objectiveSign(func)
             func_out+=state['FUNCTIONS'][func]*objectives[func]['SCALE']*sign
         state['FUNCTIONS']['COMBO'] = func_out
+        
+    elif (config.MULTI_MESH == "YES") : #NEW for combination of diff obj funs 4/26/2019 JRH
+        func_out = state['FUNCTIONS']['COMBO'] #Populated in aerodynamics() below
+        sys.stdout.write('Multi Mesh Simulation, Composite OF = '+str(func_out)+'\n')
     else:
         func_out = state['FUNCTIONS'][func_name]
         
@@ -164,112 +168,284 @@ def aerodynamics( config, state=None ):
         state.FILES.MESH = config['MESH_FILENAME']
     special_cases = su2io.get_specialCases(config)
     
-    # console output
-    if config.get('CONSOLE','VERBOSE') in ['QUIET','CONCISE']:
-        log_direct = 'log_Direct.out'
-    else:
-        log_direct = None
+    if config.NUM_CASES == 0 :
     
-    # ----------------------------------------------------    
-    #  Update Mesh
-    # ----------------------------------------------------
-    
-    # does decomposition and deformation
-    info = update_mesh(config,state)
-    
-    # ----------------------------------------------------    
-    #  Adaptation (not implemented)
-    # ----------------------------------------------------
-    
-    #if not state.['ADAPTED_FUNC']:
-    #    config = su2run.adaptation(config)
-    #    state['ADAPTED_FUNC'] = True
-    
-    # ----------------------------------------------------    
-    #  Direct Solution
-    # ----------------------------------------------------    
-    
-    # redundancy check
-    direct_done = all( [ state.FUNCTIONS.has_key(key) for key in su2io.optnames_aero[:9] ] )
-    if direct_done:
-        # return aerodynamic function values
-        aero = su2util.ordered_bunch()
-        for key in su2io.optnames_aero:
-            if state.FUNCTIONS.has_key(key):
-                aero[key] = state.FUNCTIONS[key]
-        return copy.deepcopy(aero)    
-    #: if redundant
-    
-    # files to pull
-    files = state.FILES
-    pull = []; link = []
-    
-    # files: mesh
-    name = files['MESH']
-    name = su2io.expand_part(name,config)
-    link.extend(name)
-    
-    # files: direct solution
-    if files.has_key('DIRECT'):
-        name = files['DIRECT']
-        name = su2io.expand_time(name,config)
-        link.extend( name )
-        ##config['RESTART_SOL'] = 'YES' # don't override config file
-    else:
-        config['RESTART_SOL'] = 'NO'
+        # console output
+        if config.get('CONSOLE','VERBOSE') in ['QUIET','CONCISE']:
+            log_direct = 'log_Direct.out'
+        else:
+            log_direct = None
         
-    # files: target equivarea distribution
-    if ( 'EQUIV_AREA' in special_cases and 
-         'TARGET_EA' in files ) : 
-        pull.append( files['TARGET_EA'] )
-
-    # files: target pressure distribution
-    if ( 'INV_DESIGN_CP' in special_cases and
-         'TARGET_CP' in files ) :
-        pull.append( files['TARGET_CP'] )
-
-    # files: target heat flux distribution
-    if ( 'INV_DESIGN_HEATFLUX' in special_cases and
-         'TARGET_HEATFLUX' in files ) :
-        pull.append( files['TARGET_HEATFLUX'] )
-
-    # output redirection
-    with redirect_folder( 'DIRECT', pull, link ) as push:
-        with redirect_output(log_direct):     
+        # ----------------------------------------------------    
+        #  Update Mesh
+        # ----------------------------------------------------
+        
+        # does decomposition and deformation
+        info = update_mesh(config,state)
+        
+        # ----------------------------------------------------    
+        #  Adaptation (not implemented)
+        # ----------------------------------------------------
+        
+        #if not state.['ADAPTED_FUNC']:
+        #    config = su2run.adaptation(config)
+        #    state['ADAPTED_FUNC'] = True
+        
+        # ----------------------------------------------------    
+        #  Direct Solution
+        # ----------------------------------------------------    
+        
+        # redundancy check
+        direct_done = all( [ state.FUNCTIONS.has_key(key) for key in su2io.optnames_aero[:9] ] )
+        if direct_done:
+            # return aerodynamic function values
+            aero = su2util.ordered_bunch()
+            for key in su2io.optnames_aero:
+                if state.FUNCTIONS.has_key(key):
+                    aero[key] = state.FUNCTIONS[key]
+            return copy.deepcopy(aero)    
+        #: if redundant
+        
+        # files to pull
+        files = state.FILES
+        pull = []; link = []
+        
+        # files: mesh
+        name = files['MESH']
+        name = su2io.expand_part(name,config)
+        link.extend(name)
+        
+        # files: direct solution
+        #JRH - solution_flow_#.dat I think
+        if files.has_key('DIRECT'):
+            name = files['DIRECT']
+            name = su2io.expand_time(name,config) #JRH-Returns name if steady...
+            link.extend( name )
+            ##config['RESTART_SOL'] = 'YES' # don't override config file
+        else:
+            config['RESTART_SOL'] = 'NO'
             
-            # # RUN DIRECT SOLUTION # #
-            info = su2run.direct(config)
-            su2io.restart2solution(config,info)
-            state.update(info)
+        # files: target equivarea distribution
+        if ( 'EQUIV_AREA' in special_cases and 
+             'TARGET_EA' in files ) : 
+            pull.append( files['TARGET_EA'] )
+    
+        # files: target pressure distribution
+        if ( 'INV_DESIGN_CP' in special_cases and
+             'TARGET_CP' in files ) :
+            pull.append( files['TARGET_CP'] )
+    
+        # files: target heat flux distribution
+        if ( 'INV_DESIGN_HEATFLUX' in special_cases and
+             'TARGET_HEATFLUX' in files ) :
+            pull.append( files['TARGET_HEATFLUX'] )
             
-            # direct files to push
-            name = info.FILES['DIRECT']
-            name = su2io.expand_time(name,config)
-            push.extend(name)
+        # files: NN Weights File
+        if 'TRAIN_NN' in special_cases:
+            pull.append(files['TRAIN_NN'])   
             
-            # equivarea files to push
-            if 'WEIGHT_NF' in info.FILES:
-                push.append(info.FILES['WEIGHT_NF'])
-
-            # pressure files to push
-            if 'TARGET_CP' in info.FILES:
-                push.append(info.FILES['TARGET_CP'])
-
-            # heat flux files to push
-            if 'TARGET_HEATFLUX' in info.FILES:
-                push.append(info.FILES['TARGET_HEATFLUX'])
+        
+    
+        # output redirection
+        with redirect_folder( 'DIRECT', pull, link ) as push:
+            with redirect_output(log_direct):     
                 
-    #: with output redirection
-    # return output 
-    funcs = su2util.ordered_bunch()
-    for key in su2io.optnames_aero + su2io.grad_names_directdiff:
-        if state['FUNCTIONS'].has_key(key):
-            funcs[key] = state['FUNCTIONS'][key]
+                # # RUN DIRECT SOLUTION # #
+                info = su2run.direct(config)
+                su2io.restart2solution(config,info)
+                state.update(info)
+                
+                # direct files to push
+                name = info.FILES['DIRECT']
+                name = su2io.expand_time(name,config)
+                push.extend(name)
+                          
+                
+                # equivarea files to push
+                if 'WEIGHT_NF' in info.FILES:
+                    push.append(info.FILES['WEIGHT_NF'])
+    
+                # pressure files to push
+                if 'TARGET_CP' in info.FILES:
+                    push.append(info.FILES['TARGET_CP'])
+    
+                # heat flux files to push
+                if 'TARGET_HEATFLUX' in info.FILES:
+                    push.append(info.FILES['TARGET_HEATFLUX'])
+                
+                if 'TRAIN_NN' in info.FILES:
+                    push.append(info.FILES['TRAIN_NN'])
+                    
+        #: with output redirection
+        # return output 
+        funcs = su2util.ordered_bunch()
+        for key in su2io.optnames_aero + su2io.grad_names_directdiff:
+            if state['FUNCTIONS'].has_key(key):
+                funcs[key] = state['FUNCTIONS'][key]
+                
+        if 'OUTFLOW_GENERALIZED' in config.OBJECTIVE_FUNCTION:    
+            import downstream_function
+            state['FUNCTIONS']['OUTFLOW_GENERALIZED']=downstream_function.downstream_function(config,state)
+    
+    
+    else : #MULTIPLE CONFIGS FOR WEIGHTS PROBLEM - JRH 10042018
+        # console output
+        for i in range(0,config.NUM_CASES) :
+            #sys.stdout.write('JRH: In functions.py->aerodynamics running direct solution design # '+str(i)+'\n')
+            if config.get('CONSOLE','VERBOSE') in ['QUIET','CONCISE']:
+                log_direct = 'log_Direct_' + str(i)+ '.out'
+            else:
+                log_direct = None
             
-    if 'OUTFLOW_GENERALIZED' in config.OBJECTIVE_FUNCTION:    
-        import downstream_function
-        state['FUNCTIONS']['OUTFLOW_GENERALIZED']=downstream_function.downstream_function(config,state)
-
+            # ----------------------------------------------------    
+            #  Update Mesh
+            # ----------------------------------------------------
+            
+            # does decomposition and deformation
+            if i == 0 : info = update_mesh(config,state)
+            
+            # ----------------------------------------------------    
+            #  Adaptation (not implemented)
+            # ----------------------------------------------------
+            
+            #if not state.['ADAPTED_FUNC']:
+            #    config = su2run.adaptation(config)
+            #    state['ADAPTED_FUNC'] = True
+            
+            # ----------------------------------------------------    
+            #  Direct Solution
+            # ----------------------------------------------------    
+            
+            # redundancy check
+            direct_done = all( [ state.FUNCTIONS.has_key(key) for key in su2io.optnames_aero[:9] ] )
+            if i == 0 :
+                if direct_done:
+                    # return aerodynamic function values
+                    aero = su2util.ordered_bunch()
+                    for key in su2io.optnames_aero:
+                        if state.FUNCTIONS.has_key(key):
+                            aero[key] = state.FUNCTIONS[key]
+                    return copy.deepcopy(aero)    
+                #: if redundant
+            
+            # files to pull
+            files = state.FILES
+            pull = []; link = []
+            
+            # files: mesh
+            #name = files['MESH']
+            if config.NUM_CASES > 1 and config.MULTI_MESH == "YES" :
+                name = files['MESH'+'_'+str(i)]
+            else :
+                name = files['MESH']            
+            name = su2io.expand_part(name,config)
+            link.extend(name)
+            
+            if i == 0 : curr_config = config
+            else : 
+                curr_config = su2io.Config(files['CONFIG_'+str(i)])
+                curr_config.GRADIENT_METHOD = config.GRADIENT_METHOD
+                curr_config.NUMBER_PART = config.NUMBER_PART
+                curr_config.DV_VALUE = config.DV_VALUE
+                curr_config.DV_VALUE_OLD = config.DV_VALUE_OLD
+                curr_config.DV_VALUE_NEW = config.DV_VALUE_NEW
+                #curr_config.NPOIN = config.NPOIN
+            #sys.stdout.write('Current design variables: '+str(curr_config.DV_VALUE)+'\n\n')
+            curr_config.CONFIG_I= str(i)
+            
+            # files: direct solution
+            #JRH - solution_flow_#.dat I think
+            if files.has_key('DIRECT_'+str(i)):
+                name = files['DIRECT_'+str(i)]
+                name = su2io.expand_time(name,config) #JRH-Returns name if steady...
+                link.extend( name )
+                ##config['RESTART_SOL'] = 'YES' # don't override config file
+            else:
+                config['RESTART_SOL'] = 'NO'
+                
+            # files: target equivarea distribution
+            if ( 'EQUIV_AREA' in special_cases and 
+                 'TARGET_EA' in files ) : 
+                pull.append( files['TARGET_EA_'+str(i)] )
+        
+            # files: target pressure distribution
+            if ( 'INV_DESIGN_CP' in special_cases and
+                 'TARGET_CP_'+str(i) in files ) :
+                pull.append( files['TARGET_CP_'+str(i)] )
+        
+            # files: target heat flux distribution
+            if ( 'INV_DESIGN_HEATFLUX' in special_cases and
+                 'TARGET_HEATFLUX' in files ) :
+                pull.append( files['TARGET_HEATFLUX'+str(i)] )
+                
+            # files: NN Weights File
+            if 'TRAIN_NN' in special_cases:
+                pull.append(files['TRAIN_NN'])       
+            
+            if i > 0 : pull.append('beta_fiml.dat')
+            
+            # output redirection
+            with redirect_folder( 'DIRECT_'+str(i), pull, link ) as push:
+                with redirect_output(log_direct):     
+                    
+                    # # RUN DIRECT SOLUTION # #
+                    info = su2run.direct(curr_config)
+                    su2io.restart2solution(curr_config,info)
+                    state.update(info)
+                    
+                    # direct files to push
+                    if i == 0 : name = info.FILES['DIRECT']
+                    else : 
+                        #name = info.FILES['DIRECT_'+str(i)]
+                        name = info.FILES['DIRECT'] #Need to save info?
+                    
+                    name = su2io.expand_time(name,curr_config)
+                    push.extend(name)
+                              
+                    
+                    # equivarea files to push
+                    if 'WEIGHT_NF_'+str(i) in info.FILES:
+                        push.append(info.FILES['WEIGHT_NF_'+str(i)])
+        
+                    # pressure files to push
+                    if 'TARGET_CP_'+str(i) in info.FILES:
+                        push.append(info.FILES['TARGET_CP_'+str(i)])
+        
+                    # heat flux files to push
+                    if 'TARGET_HEATFLUX_'+str(i) in info.FILES:
+                        push.append(info.FILES['TARGET_HEATFLUX_'+str(i)])
+                    
+                    if 'TRAIN_NN' in info.FILES:
+                        push.append(info.FILES['TRAIN_NN'])
+                        
+            #: with output redirection
+            # return output 
+            if i == 0 : funcs = su2util.ordered_bunch()
+            for key in su2io.optnames_aero + su2io.grad_names_directdiff:
+                if state['FUNCTIONS'].has_key(key):
+                    if i == 0: funcs[key] = state['FUNCTIONS'][key]
+                    else :
+                        if key != "COMBO": 
+                            funcs[key] += state['FUNCTIONS'][key]
+                     #sys.stdout.write(str(funcs[key]))
+                    state['FUNCTIONS'][key] = funcs[key]
+                if config.MULTI_MESH == "YES" :
+                    objective = curr_config.OPT_OBJECTIVE
+                    if objective.has_key(key) :
+                        #sys.stdout.write(str(objective))
+                        sign = su2io.get_objectiveSign(key)
+                        sys.stdout.write('Config '+str(i)+' '+key+' = '+str(state['FUNCTIONS'][key])+' * '+str(objective[key]['SCALE'])+' * '+str(sign)+'\n')
+                        if i == 0: funcs['COMBO'] = state['FUNCTIONS'][key]*objective[key]['SCALE']
+                        else : funcs['COMBO'] += state['FUNCTIONS'][key]*objective[key]['SCALE']
+                        state['FUNCTIONS']['COMBO'] = funcs['COMBO']
+                        
+                     
+            if 'OUTFLOW_GENERALIZED' in config.OBJECTIVE_FUNCTION:    
+                import downstream_function
+                if i == 0 : state['FUNCTIONS']['OUTFLOW_GENERALIZED']=downstream_function.downstream_function(config,state)
+                else : state['FUNCTIONS']['OUTFLOW_GENERALIZED']=[sum(x) for x in zip(downstream_function.downstream_function(config,state),downstream_function.downstream_function(config,state))]
+    #sys.stdout.write('JRH: In functions.py->aerodynamics Done With Direct Solutions # \n')
+                
     return funcs
 
 #: def aerodynamics()

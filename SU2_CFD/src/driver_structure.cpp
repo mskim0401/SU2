@@ -102,10 +102,12 @@ CDriver::CDriver(char* confFile,
      constructor, the input configuration file is parsed and all options are
      read and stored. ---*/
 
+//	cout << "JRH Debugging: Instantiating config_container at iZone = " << iZone << endl;
     config_container[iZone] = new CConfig(config_file_name, SU2_CFD, iZone, nZone, nDim, VERB_HIGH);
 
     /*--- Set the MPI communicator ---*/
 
+    cout << "Setting the config MPI Communicator" << endl;
     config_container[iZone]->SetMPICommunicator(MPICommunicator);
 
     /*--- Definition of the geometry class to store the primal grid in the
@@ -212,8 +214,9 @@ CDriver::CDriver(char* confFile,
     if (rank == MASTER_NODE) {
       cout << endl <<"------------------------ Iteration Preprocessing ------------------------" << endl;
     }
+//    cout << "JRH Debugging: Process " << rank << " in CDriver Constructor (driver_structure.cpp) Calling Iteration Preprocessing" << endl;
     Iteration_Preprocessing();
-
+//    cout << "JRH Debugging: Process " << rank << " in CDriver Constructor (driver_structure.cpp) Back From Iteration Preprocessing" << endl;
     /*--- Definition of the solver class: solver_container[#ZONES][#MG_GRIDS][#EQ_SYSTEMS].
      The solver classes are specific to a particular set of governing equations,
      and they contain the subroutines with instructions for computing each spatial
@@ -291,7 +294,7 @@ CDriver::CDriver(char* confFile,
   /*--- Instantiate the geometry movement classes for the solution of unsteady
    flows on dynamic meshes, including rigid mesh transformations, dynamically
    deforming meshes, and preprocessing of harmonic balance. ---*/
-
+//  cout << "JRH Debugging: Setting grid movement" << endl;
   for (iZone = 0; iZone < nZone; iZone++) {
 
     if (config_container[iZone]->GetGrid_Movement() ||
@@ -336,7 +339,7 @@ CDriver::CDriver(char* confFile,
    manages the writing of all restart, volume solution, surface solution,
    surface comma-separated value, and convergence history files (both in serial
    and in parallel). ---*/
-
+//  cout << "JRH Debugging: Instantiating output class in driver_structure.cpp" << endl;
   output = new COutput();
 
   /*--- Open the convergence history file ---*/
@@ -376,7 +379,7 @@ CDriver::CDriver(char* confFile,
 #else
   StartTime = MPI_Wtime();
 #endif
-
+//  cout << "JRH Debugging: Done in CDriver Constructor" << endl;
 }
 
 void CDriver::Postprocessing() {
@@ -491,6 +494,8 @@ void CDriver::Postprocessing() {
   delete [] grid_movement;
   if (rank == MASTER_NODE) cout << "Deleted CVolumetricMovement class." << endl;
 
+  //cout << "JRH Warning: Not Deleting config_container Because It Throws Undiagnosed segmentation fault! (driver_structre.cpp postprocessing)" << endl;
+  cout << "JRH: Beginning to delete config container in driver_structure.cpp" << endl;
   if (config_container!= NULL) {
     for (iZone = 0; iZone < nZone; iZone++) {
       if (config_container[iZone] != NULL) {
@@ -499,6 +504,7 @@ void CDriver::Postprocessing() {
     }
     delete [] config_container;
   }
+//  cout << "JRH: Done deleting config container in driver_structure.cpp" << endl;
   if (rank == MASTER_NODE) cout << "Deleted CConfig container." << endl;
 
   /*--- Deallocate output container ---*/
@@ -691,7 +697,7 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
   bool euler, ns, turbulent,
   adj_euler, adj_ns, adj_turb,
   poisson, wave, heat, fem,
-  spalart_allmaras, neg_spalart_allmaras, menter_sst, transition,
+  spalart_allmaras, neg_spalart_allmaras, menter_sst, transition, fiml_spalart_allmaras, //JRH 04032017
   template_solver, disc_adj;
   
   /*--- Initialize some useful booleans ---*/
@@ -699,7 +705,7 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
   euler            = false;  ns              = false;  turbulent = false;
   adj_euler        = false;  adj_ns          = false;  adj_turb  = false;
   spalart_allmaras = false;  menter_sst      = false;
-  poisson          = false;  neg_spalart_allmaras = false;
+  poisson          = false;  neg_spalart_allmaras = false; fiml_spalart_allmaras = false; //JRH 04032017
   wave             = false;   disc_adj        = false;
   fem = false;
   heat             = false;
@@ -735,6 +741,7 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
       case SA:     spalart_allmaras = true;     break;
       case SA_NEG: neg_spalart_allmaras = true; break;
       case SST:    menter_sst = true;           break;
+      case SA_FIML: fiml_spalart_allmaras = true; break;
         
       default: cout << "Specified turbulence model unavailable or none selected" << endl; exit(EXIT_FAILURE); break;
     }
@@ -771,7 +778,7 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
       }
     }
     if (turbulent) {
-      if (spalart_allmaras) {
+      if (spalart_allmaras||fiml_spalart_allmaras) {
         solver_container[iMGlevel][TURB_SOL] = new CTurbSASolver(geometry[iMGlevel], config, iMGlevel, solver_container[iMGlevel][FLOW_SOL]->GetFluidModel() );
         solver_container[iMGlevel][FLOW_SOL]->Preprocessing(geometry[iMGlevel], solver_container[iMGlevel], config, iMGlevel, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
         solver_container[iMGlevel][TURB_SOL]->Postprocessing(geometry[iMGlevel], solver_container[iMGlevel], config, iMGlevel);
@@ -840,7 +847,7 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
   bool euler, ns, turbulent,
   adj_euler, adj_ns, adj_turb,
   poisson, wave, heat, fem,
-  spalart_allmaras, neg_spalart_allmaras, menter_sst, transition,
+  spalart_allmaras, neg_spalart_allmaras, menter_sst, transition, fiml_spalart_allmaras,
   template_solver, disc_adj;
   
   /*--- Initialize some useful booleans ---*/
@@ -848,7 +855,7 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
   euler            = false;  ns              = false;  turbulent = false;
   adj_euler        = false;  adj_ns          = false;  adj_turb  = false;
   spalart_allmaras = false;  menter_sst      = false;
-  poisson          = false;  neg_spalart_allmaras = false;
+  poisson          = false;  neg_spalart_allmaras = false; fiml_spalart_allmaras = false;
   wave             = false;  disc_adj        = false;
   fem = false;
   heat             = false;
@@ -881,6 +888,7 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
       case SA:     spalart_allmaras = true;     break;
       case SA_NEG: neg_spalart_allmaras = true; break;
       case SST:    menter_sst = true;           break;
+      case SA_FIML: fiml_spalart_allmaras = true; break;
     }
   
   /*--- Definition of the Class for the solution: solver_container[DOMAIN][MESH_LEVEL][EQUATION]. Note that euler, ns
@@ -910,7 +918,7 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
     }
     
     if (turbulent) {
-      if (spalart_allmaras || neg_spalart_allmaras || menter_sst ) {
+      if (spalart_allmaras || neg_spalart_allmaras || menter_sst || fiml_spalart_allmaras) {
         delete solver_container[iMGlevel][TURB_SOL];
       }
       if (transition) {
@@ -1070,7 +1078,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
   euler, adj_euler,
   ns, adj_ns,
   turbulent, adj_turb,
-  spalart_allmaras, neg_spalart_allmaras, menter_sst,
+  spalart_allmaras, neg_spalart_allmaras, menter_sst, fiml_spalart_allmaras,
   poisson,
   wave,
   fem,
@@ -1087,7 +1095,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
   poisson          = false;
   adj_euler        = false;   adj_ns           = false;   adj_turb         = false;
   wave             = false;   heat             = false;   fem        = false;
-  spalart_allmaras = false; neg_spalart_allmaras = false;  menter_sst       = false;
+  spalart_allmaras = false; neg_spalart_allmaras = false; fiml_spalart_allmaras = false;  menter_sst       = false;
   transition       = false;
   template_solver  = false;
   
@@ -1113,6 +1121,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       case SA:     spalart_allmaras = true;     break;
       case SA_NEG: neg_spalart_allmaras = true; break;
       case SST:    menter_sst = true; constants = solver_container[MESH_0][TURB_SOL]->GetConstants(); break;
+      case SA_FIML: fiml_spalart_allmaras = true; break; //JRH Add case for FIML SA Model 03292017 1553
       default: cout << "Specified turbulence model unavailable or none selected" << endl; exit(EXIT_FAILURE); break;
     }
   
@@ -1375,7 +1384,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
   
   /*--- Solver definition for the turbulent model problem ---*/
   
-  if (turbulent) {
+  if (turbulent) { //JRH - Modified SA with || fiml_spalart_allmaras so same routines will be called by both turbulence models (w/ and w/o fiml correction 04032017
     
     /*--- Definition of the convective scheme for each equation and mesh level ---*/
     
@@ -1384,7 +1393,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
         break;
       case SPACE_UPWIND :
         for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-          if (spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][CONV_TERM] = new CUpwSca_TurbSA(nDim, nVar_Turb, config);
+          if (spalart_allmaras || fiml_spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][CONV_TERM] = new CUpwSca_TurbSA(nDim, nVar_Turb, config);
           else if (neg_spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][CONV_TERM] = new CUpwSca_TurbSA(nDim, nVar_Turb, config);
           else if (menter_sst) numerics_container[iMGlevel][TURB_SOL][CONV_TERM] = new CUpwSca_TurbSST(nDim, nVar_Turb, config);
         }
@@ -1397,7 +1406,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
     /*--- Definition of the viscous scheme for each equation and mesh level ---*/
     
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      if (spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][VISC_TERM] = new CAvgGradCorrected_TurbSA(nDim, nVar_Turb, config);
+      if (spalart_allmaras || fiml_spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][VISC_TERM] = new CAvgGradCorrected_TurbSA(nDim, nVar_Turb, config);
       else if (neg_spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][VISC_TERM] = new CAvgGradCorrected_TurbSA_Neg(nDim, nVar_Turb, config);
       else if (menter_sst) numerics_container[iMGlevel][TURB_SOL][VISC_TERM] = new CAvgGradCorrected_TurbSST(nDim, nVar_Turb, constants, config);
     }
@@ -1405,7 +1414,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
     /*--- Definition of the source term integration scheme for each equation and mesh level ---*/
     
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      if (spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_TurbSA(nDim, nVar_Turb, config);
+      if (spalart_allmaras || fiml_spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_TurbSA(nDim, nVar_Turb, config);
       else if (neg_spalart_allmaras) numerics_container[iMGlevel][TURB_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_TurbSA_Neg(nDim, nVar_Turb, config);
       else if (menter_sst) numerics_container[iMGlevel][TURB_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_TurbSST(nDim, nVar_Turb, constants, config);
       numerics_container[iMGlevel][TURB_SOL][SOURCE_SECOND_TERM] = new CSourceNothing(nDim, nVar_Turb, config);
@@ -1414,7 +1423,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
     /*--- Definition of the boundary condition method ---*/
     
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      if (spalart_allmaras) {
+      if (spalart_allmaras||fiml_spalart_allmaras) {
         numerics_container[iMGlevel][TURB_SOL][CONV_BOUND_TERM] = new CUpwSca_TurbSA(nDim, nVar_Turb, config);
         numerics_container[iMGlevel][TURB_SOL][VISC_BOUND_TERM] = new CAvgGrad_TurbSA(nDim, nVar_Turb, config);
       }
@@ -1664,7 +1673,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
         break;
       case SPACE_UPWIND :
         for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++)
-          if (spalart_allmaras) {
+          if (spalart_allmaras || fiml_spalart_allmaras) {
             numerics_container[iMGlevel][ADJTURB_SOL][CONV_TERM] = new CUpwSca_AdjTurb(nDim, nVar_Adj_Turb, config);
           }
           else if (neg_spalart_allmaras) {cout << "Adjoint Neg SA turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
@@ -1677,7 +1686,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
     
     /*--- Definition of the viscous scheme for each equation and mesh level ---*/
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      if (spalart_allmaras) {
+      if (spalart_allmaras || fiml_spalart_allmaras) {
         numerics_container[iMGlevel][ADJTURB_SOL][VISC_TERM] = new CAvgGradCorrected_AdjTurb(nDim, nVar_Adj_Turb, config);
       }
       else if (neg_spalart_allmaras) {cout << "Adjoint Neg SA turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
@@ -1686,7 +1695,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
     
     /*--- Definition of the source term integration scheme for each equation and mesh level ---*/
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      if (spalart_allmaras) {
+      if (spalart_allmaras || fiml_spalart_allmaras) {
         numerics_container[iMGlevel][ADJTURB_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_AdjTurb(nDim, nVar_Adj_Turb, config);
         numerics_container[iMGlevel][ADJTURB_SOL][SOURCE_SECOND_TERM] = new CSourceConservative_AdjTurb(nDim, nVar_Adj_Turb, config);
       }
@@ -1696,7 +1705,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
     
     /*--- Definition of the boundary condition method ---*/
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      if (spalart_allmaras) numerics_container[iMGlevel][ADJTURB_SOL][CONV_BOUND_TERM] = new CUpwLin_AdjTurb(nDim, nVar_Adj_Turb, config);
+      if (spalart_allmaras || fiml_spalart_allmaras) numerics_container[iMGlevel][ADJTURB_SOL][CONV_BOUND_TERM] = new CUpwLin_AdjTurb(nDim, nVar_Adj_Turb, config);
       else if (neg_spalart_allmaras) {cout << "Adjoint Neg SA turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
       else if (menter_sst) {cout << "Adjoint SST turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
     }
@@ -1752,7 +1761,7 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
   euler, adj_euler,
   ns, adj_ns,
   turbulent, adj_turb,
-  spalart_allmaras, neg_spalart_allmaras, menter_sst,
+  spalart_allmaras, neg_spalart_allmaras, menter_sst, fiml_spalart_allmaras,
   poisson,
   wave,
   fem,
@@ -1768,7 +1777,7 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
   poisson          = false;
   adj_euler        = false;   adj_ns           = false;   adj_turb         = false;
   wave             = false;   heat             = false;   fem        = false;
-  spalart_allmaras = false; neg_spalart_allmaras = false; menter_sst       = false;
+  spalart_allmaras = false; neg_spalart_allmaras = false; menter_sst       = false; fiml_spalart_allmaras = false; //JRH - 04032017
   transition       = false;
   template_solver  = false;
   
@@ -1794,6 +1803,7 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
       case SA:     spalart_allmaras = true;     break;
       case SA_NEG: neg_spalart_allmaras = true; break;
       case SST:    menter_sst = true;  break;
+      case SA_FIML: fiml_spalart_allmaras = true; break; //JRH - 04032017
         
     }
   
@@ -1917,14 +1927,14 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
     switch (config->GetKind_ConvNumScheme_Turb()) {
       case SPACE_UPWIND :
         for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-          if (spalart_allmaras || neg_spalart_allmaras ||menter_sst)
+          if (spalart_allmaras || neg_spalart_allmaras ||menter_sst || fiml_spalart_allmaras) //JRH - 04032017
             delete numerics_container[iMGlevel][TURB_SOL][CONV_TERM];
         }
         break;
     }
     
     /*--- Definition of the viscous scheme for each equation and mesh level ---*/
-    if (spalart_allmaras || neg_spalart_allmaras || menter_sst) {
+    if (spalart_allmaras || neg_spalart_allmaras || menter_sst || fiml_spalart_allmaras) { //JRH - 04032017
       for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
         delete numerics_container[iMGlevel][TURB_SOL][VISC_TERM];
         delete numerics_container[iMGlevel][TURB_SOL][SOURCE_FIRST_TERM];
@@ -2072,7 +2082,7 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
         
       case SPACE_UPWIND :
         for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++)
-          if (spalart_allmaras) {
+          if (spalart_allmaras || fiml_spalart_allmaras) {
             delete numerics_container[iMGlevel][ADJTURB_SOL][CONV_TERM];
           }
         break;
@@ -2080,7 +2090,7 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
     
     
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      if (spalart_allmaras) {
+      if (spalart_allmaras || fiml_spalart_allmaras) {
         /*--- Definition of the viscous scheme for each equation and mesh level ---*/
         delete numerics_container[iMGlevel][ADJTURB_SOL][VISC_TERM];
         /*--- Definition of the source term integration scheme for each equation and mesh level ---*/
@@ -3300,10 +3310,10 @@ void CFluidDriver::Run() {
   unsteady = (config_container[MESH_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) || (config_container[MESH_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND);
 
   /*--- Zone preprocessing ---*/
-
+  //cout << "JRH Debugging: In CFluidDriver::Run() - Calling iteration preprocessing for all zones" << endl;
   for (iZone = 0; iZone < nZone; iZone++)
     iteration_container[iZone]->Preprocess(output, integration_container, geometry_container, solver_container, numerics_container, config_container, surface_movement, grid_movement, FFDBox, iZone);
-
+  //cout << "JRH Debugging: In CFluidDriver::Run() - Done calling iteration preprocessing for all zones" << endl;
   /*--- Updating zone interface communication patterns,
    needed only for unsteady simulation since for steady problems
   this is done once in the interpolator_container constructor 
@@ -3325,7 +3335,7 @@ void CFluidDriver::Run() {
     nIntIter = 1;
 
   for (IntIter = 0; IntIter < nIntIter; IntIter++) {
-
+	//cout << "JRH Debugging: In CFluidDriver::Run() - Calling Transfer_Data() IntIter = " << IntIter << endl;
     /*--- At each pseudo time-step updates transfer data ---*/
     for (iZone = 0; iZone < nZone; iZone++)   
       for (jZone = 0; jZone < nZone; jZone++)
@@ -3333,13 +3343,14 @@ void CFluidDriver::Run() {
           Transfer_Data(iZone, jZone);
 
     /*--- For each zone runs one single iteration ---*/
-
+    //cout << "JRH Debugging: In CFluidDriver::Run() - Iterate() for one single iteration" << endl;
     for (iZone = 0; iZone < nZone; iZone++) {
+      //cout << "JRH Debugging: Calling Config() for iZone = " << iZone << endl;
       config_container[iZone]->SetIntIter(IntIter);
-
+      //cout << "JRH Debugging: Calling Iterate() for iZone = " << iZone << endl;
       iteration_container[iZone]->Iterate(output, integration_container, geometry_container, solver_container, numerics_container, config_container, surface_movement, grid_movement, FFDBox, iZone);
     }
-
+    //cout << "JRH Debugging: Done with single iteration, Checking Convergence with integration_container->GetConvergence" << endl;
     /*--- Check convergence in each zone --*/
 
     checkConvergence = 0;

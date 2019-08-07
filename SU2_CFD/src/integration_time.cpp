@@ -583,13 +583,21 @@ void CMultiGridIntegration::SetRestricted_Solution(unsigned short RunTime_EqSyst
   const unsigned short nDim = geo_fine->GetnDim();
   const bool grid_movement  = config->GetGrid_Movement();
   
+  //JRH 08312018 - Modifying to map beta from one grid level to the next
+  //Right now I'm thinking we just need to map beta, and that the NN isn't really
+  //being computed at lower grids because the multigrid is really only working
+  //on the flow solver and the turbulence model is just being mapped.
+  const bool fiml = (config->GetKind_Turb_Model() == SA_FIML && RunTime_EqSystem == TURB_SOL); //08312018
+
   su2double *Solution = new su2double[nVar];
+//  su2double beta_fine;
+  su2double beta_coarse = 0.0;
   
   /*--- Compute coarse solution from fine solution ---*/
   
   for (Point_Coarse = 0; Point_Coarse < geo_coarse->GetnPointDomain(); Point_Coarse++) {
     Area_Parent = geo_coarse->node[Point_Coarse]->GetVolume();
-    
+    beta_coarse = 0.0;
     for (iVar = 0; iVar < nVar; iVar++) Solution[iVar] = 0.0;
     
     for (iChildren = 0; iChildren < geo_coarse->node[Point_Coarse]->GetnChildren_CV(); iChildren++) {
@@ -597,12 +605,17 @@ void CMultiGridIntegration::SetRestricted_Solution(unsigned short RunTime_EqSyst
       Point_Fine = geo_coarse->node[Point_Coarse]->GetChildren_CV(iChildren);
       Area_Children = geo_fine->node[Point_Fine]->GetVolume();
       Solution_Fine = sol_fine->node[Point_Fine]->GetSolution();
+      if (fiml) { //JRH 08312018
+//    	  beta_fine = sol_fine->node[Point_Fine]->GetBetaFiml();
+    	  beta_coarse += sol_fine->node[Point_Fine]->GetBetaFiml()*Area_Children/Area_Parent;
+      }
       for (iVar = 0; iVar < nVar; iVar++) {
         Solution[iVar] += Solution_Fine[iVar]*Area_Children/Area_Parent;
       }
     }
     
     sol_coarse->node[Point_Coarse]->SetSolution(Solution);
+    if (fiml) sol_coarse->node[Point_Coarse]->SetBetaFiml(beta_coarse); //JRH 08312018 But does this work when sol_coarse is ADJTURB_SOL??
     
   }
   
@@ -701,7 +714,9 @@ void CMultiGridIntegration::NonDimensional_Parameters(CGeometry **geometry, CSol
       
       solver_container[FinestMesh][FLOW_SOL]->Pressure_Forces(geometry[FinestMesh], config);
       solver_container[FinestMesh][FLOW_SOL]->Momentum_Forces(geometry[FinestMesh], config);
-      solver_container[FinestMesh][FLOW_SOL]->Friction_Forces(geometry[FinestMesh], config);
+      //Testing theory that geometry container not in AD Path so can't store betas there for Objective Function
+      if (config->GetKind_Turb_Model() == SA_FIML) solver_container[FinestMesh][FLOW_SOL]->Friction_Forces(geometry[FinestMesh], config, solver_container[FinestMesh][TURB_SOL]);
+      else solver_container[FinestMesh][FLOW_SOL]->Friction_Forces(geometry[FinestMesh], config);
       
       /*--- Evaluate convergence monitor ---*/
       

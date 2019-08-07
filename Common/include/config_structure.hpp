@@ -368,6 +368,7 @@ private:
   bool AddIndNeighbor;			/*!< \brief Include indirect neighbor in the agglomeration process. */
   unsigned short nDV,		/*!< \brief Number of design variables. */
   nObj, nObjW;              /*! \brief Number of objective functions. */
+  unsigned long nDV_long;   /*! \brief Long int to store nDV for FIML case which has potentially large nDV */
   unsigned short* nDV_Value;		/*!< \brief Number of values for each design variable (might be different than 1 if we allow arbitrary movement). */
   unsigned short nFFDBox;		/*!< \brief Number of ffd boxes. */
   unsigned short nGridMovement;		/*!< \brief Number of grid movement types specified. */
@@ -458,7 +459,7 @@ private:
   Kind_Struct_Solver;		/*!< \brief Determines the geometric condition (small or large deformations) for structural analysis. */
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
-  Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_NRBC;           /*!< \brief Kind of inlet boundary treatment. */
+  Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_NRBC, Kind_SA_Fiml, Kind_NN_Scaling, Kind_Train_NN;           /*!< \brief Kind of inlet boundary treatment. */
   su2double Linear_Solver_Error;		/*!< \brief Min error of the linear solver for the implicit formulation. */
   su2double Linear_Solver_Error_FSI_Struc;		/*!< \brief Min error of the linear solver for the implicit formulation in the structural side for FSI problems . */
   unsigned long Linear_Solver_Iter;		/*!< \brief Max iterations of the linear solver for the implicit formulation. */
@@ -514,6 +515,23 @@ private:
   su2double Total_CD;			/*!< \brief Specify a target CL instead of AoA (external flow only). */
   su2double dCL_dAlpha;        /*!< \brief value of dCl/dAlpha. */
   su2double dCM_diH;        /*!< \brief value of dCM/dHi. */
+  su2double Target_Inverse_CL; /*!< \brief value of target CL for inverse design problems (not fixed CL mode!!) - JRH 10112017 */
+  su2double Target_Inverse_CD; /*!< \brief value of target CD for inverse design problems - JRH 10112017 */
+  su2double Lambda_FIML; /*!< \brief value of weight factor for FIML problems, penalizes designs far from baseline - JRH 10112017 */
+  su2double Lambda_Grid_FIML;
+  su2double Lambda_Loss_FIML;
+  bool salsa; //JRH 03012019
+  bool Cp_avg; //JRH 03132019
+  bool l2_reg; //JRH 08022019
+  bool multi_mesh;
+  unsigned short config_num;
+  su2double Percent_Holdout;
+  su2double Learning_Rate; //JRH 04172018 - Variables for NN training
+  unsigned short nBins;
+  unsigned short N_Hidden_Layers;
+  unsigned long N_Neurons, Iter_Start_NN, Num_Epoch, Iter_Stop_NN_Scaling;
+  bool Train_NN;
+  bool Filter_Shield;
   unsigned long Iter_Fixed_CL;			/*!< \brief Iterations to re-evaluate the angle of attack (external flow only). */
   unsigned long Iter_Fixed_CM;			/*!< \brief Iterations to re-evaluate the angle of attack (external flow only). */
   unsigned long Iter_Fixed_NetThrust;			/*!< \brief Iterations to re-evaluate the angle of attack (external flow only). */
@@ -1152,6 +1170,24 @@ public:
    */
   static unsigned short GetnZone(string val_mesh_filename, unsigned short val_format, CConfig *config);
   
+  /*!
+   * \brief Gets the number of elements (volumes) in the mesh file.
+   * \param[in] val_mesh_filename - Name of the file with the grid information.
+   * \param[in] val_format - Format of the file with the grid information.
+   * \param[in] config - Definition of the particular problem.
+   * \return Total number of zones in the grid file.
+   */
+  static unsigned short GetnElem(string val_mesh_filename, unsigned short val_format);
+
+  /*!
+   * \brief Gets the number of elements (volumes) in the mesh file.
+   * \param[in] val_mesh_filename - Name of the file with the grid information.
+   * \param[in] val_format - Format of the file with the grid information.
+   * \param[in] config - Definition of the particular problem.
+   * \return Total number of zones in the grid file.
+   */
+  static unsigned long GetnPoin(string val_mesh_filename, unsigned short val_format);
+
   /*!
    * \brief Gets the number of dimensions in the mesh file
    * \param[in] val_mesh_filename - Name of the file with the grid information.
@@ -2226,13 +2262,13 @@ public:
    * \brief Get the number of design variables.
    * \return Number of the design variables.
    */
-  unsigned short GetnDV(void);
+  unsigned long GetnDV(void);
   
   /*!
    * \brief Get the number of design variables.
    * \return Number of the design variables.
    */
-  unsigned short GetnDV_Value(unsigned short iDV);
+  unsigned short GetnDV_Value(unsigned long iDV);
   
   /*!
    * \brief Get the number of FFD boxes.
@@ -3267,6 +3303,19 @@ public:
   unsigned short GetKind_Turb_Model(void);
   
   /*!
+   * \brief Get the type of SA_FIML inversion i.e. where to apply beta.
+   * \return Kind of SA_FIML correction.
+   */
+  bool GetSALSA(void);
+  bool GetL2Reg(void);
+  bool GetCp_avg(void);
+  bool GetMultiMesh(void);
+  unsigned short GetConfigNum(void);
+  unsigned short GetKind_SA_Fiml(void);
+
+  unsigned short GetKind_NN_Scaling(void); //JRH 05102018
+
+  /*!
    * \brief Get the kind of the transition model.
    * \return Kind of the transion model.
    */
@@ -3989,6 +4038,18 @@ public:
   unsigned short GetnZone(void);
   
   /*!
+   * \brief Provides the number of elements.
+   * \return Number of variables.
+   */
+  unsigned short GetnElem(void);
+
+  /*!
+   * \brief Provides the number of points.
+   * \return Number of variables.
+   */
+  unsigned short GetnPoin(void);
+
+  /*!
    * \brief Provides the number of varaibles.
    * \return Number of variables.
    */
@@ -4349,14 +4410,14 @@ public:
    * \param[in] val_value - Value of the design variable that we want to read.
    * \return Design variable step.
    */
-  su2double GetDV_Value(unsigned short val_dv, unsigned short val_val = 0);
+  su2double GetDV_Value(unsigned long val_dv, unsigned short val_val = 0);
   
   /*!
    * \brief Set the value of the design variable step, we use this value in design problems.
    * \param[in] val_dv - Number of the design variable that we want to read.
    * \param[in] val    - Value of the design variable.
    */
-  void SetDV_Value(unsigned short val_dv, unsigned short val_ind, su2double val);
+  void SetDV_Value(unsigned long val_dv, unsigned short val_ind, su2double val);
   
   /*!
    * \brief Get information about the grid movement.
@@ -4681,7 +4742,7 @@ public:
    * \param[in] val_dv - Number of the design variable that we want to read.
    * \return Design variable identification.
    */
-  unsigned short GetDesign_Variable(unsigned short val_dv);
+  unsigned short GetDesign_Variable(unsigned long val_dv);
   
   /*!
    * \brief Obtain the kind of convergence criteria to establish the convergence of the CFD code.
@@ -6456,6 +6517,36 @@ public:
    */
   su2double GetTarget_CL(void);
   
+  /*!
+   * \brief Get the value specified for the target CL for Inverse design problems.
+   * \return Value of the target CL.
+   */
+  su2double GetTarget_InverseCL(void);
+
+  /*!
+   * \brief Get the value specified for the target CD for Inverse design problems.
+   * \return Value of the target CD.
+   */
+  su2double GetTarget_InverseCD(void);
+
+  /*!
+   * \brief Get the value specified for the lambda FIML weight factor.
+   * \return Value of the target CL.
+   */
+  su2double GetLambdaFiml(void);
+  su2double GetLambdaGridFiml(void);
+  su2double GetLambdaLossFiml(void);
+  su2double GetPercentHoldout(void);
+  bool GetTrainNN(void);
+  bool GetFilterShield(void);
+  unsigned short GetKindTrainNN(void);
+  unsigned short GetNHiddenLayers(void);
+  unsigned short GetnBins(void);
+  unsigned long GetNNeurons(void);
+  unsigned long GetIterStartNN(void);
+  unsigned long GetIterStopNNScaling(void); //07162018
+  unsigned long GetNumEpoch(void);
+  su2double GetLearningRate(void);
   /*!
    * \brief Get the value for the lift curve slope for fixed CL mode.
    * \return Lift curve slope for fixed CL mode.

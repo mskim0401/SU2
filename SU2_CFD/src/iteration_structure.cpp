@@ -531,7 +531,7 @@ void CMeanFlowIteration::Iterate(COutput *output,
       (config_container[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS)) {
     
     /*--- Solve the turbulence model ---*/
-    
+    //cout << "JRH Debugging: In CMeanFlowIteration::Iterate() - Calling SetGlobalParam() and integration_container->SingleGridIteration for Turb Model" << endl;
     config_container[val_iZone]->SetGlobalParam(RANS, RUNTIME_TURB_SYS, ExtIter);
     integration_container[val_iZone][TURB_SOL]->SingleGrid_Iteration(geometry_container, solver_container, numerics_container,
                                                                      config_container, RUNTIME_TURB_SYS, IntIter, val_iZone);
@@ -1574,6 +1574,7 @@ void CAdjMeanFlowIteration::Iterate(COutput *output,
   unsigned long ExtIter = config_container[ZONE_0]->GetExtIter();
   bool unsteady = (config_container[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_1ST) || (config_container[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_2ND);
   
+
   /*--- Set the value of the internal iteration ---*/
   
   ExtIter = config_container[val_iZone]->GetExtIter();
@@ -1716,6 +1717,9 @@ void CDiscAdjMeanFlowIteration::Preprocess(COutput *output,
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
+//#ifdef HAVE_MPI
+//  cout << "JRH Debugging: Process " << rank << " in CDiscAdjMeanFlowIteration::Preprocess()" << endl;
+//#endif
   /*--- For the unsteady adjoint, load direct solutions from restart files. ---*/
 
   if (config_container[val_iZone]->GetUnsteady_Simulation()) {
@@ -1782,10 +1786,17 @@ void CDiscAdjMeanFlowIteration::Preprocess(COutput *output,
     }
   }
 
+//#ifdef HAVE_MPI
+//  cout << "JRH Debugging: Process " << rank << " in CDiscAdjMeanFlowIteration::Preprocess() - Calling solver preprocessing" << endl;
+//#endif
+
   solver_container[val_iZone][MESH_0][ADJFLOW_SOL]->Preprocessing(geometry_container[val_iZone][MESH_0], solver_container[val_iZone][MESH_0],  config_container[val_iZone] , MESH_0, 0, RUNTIME_ADJFLOW_SYS, false);
   if (turbulent) {
     solver_container[val_iZone][MESH_0][ADJTURB_SOL]->Preprocessing(geometry_container[val_iZone][MESH_0], solver_container[val_iZone][MESH_0],  config_container[val_iZone] , MESH_0, 0, RUNTIME_ADJTURB_SYS, false);
   }
+//#ifdef HAVE_MPI
+  //cout << "JRH Debugging: Process " << rank << " in CDiscAdjMeanFlowIteration::Preprocess() - Done with solver preprocessing" << endl;
+//#endif
 
   if (CurrentRecording != FLOW_VARIABLES || unsteady) {
     
@@ -1814,7 +1825,9 @@ void CDiscAdjMeanFlowIteration::Preprocess(COutput *output,
     }
     
   }
-  
+//#ifdef HAVE_MPI
+//  cout << "JRH Debugging: Process " << rank << " in CDiscAdjMeanFlowIteration::Preprocess() - Done" << endl;
+//#endif
 }
 
 
@@ -1871,6 +1884,9 @@ void CDiscAdjMeanFlowIteration::Iterate(COutput *output,
   bool dual_time_1st = (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST);
   bool dual_time_2nd = (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND);
   bool dual_time = (dual_time_1st || dual_time_2nd);
+  bool fiml = (config_container[ZONE_0]->GetKind_Turb_Model()==SA_FIML);
+
+  bool jrh_debug = true;
 
   config_container[val_iZone]->SetIntIter(IntIter);
 
@@ -1883,13 +1899,47 @@ void CDiscAdjMeanFlowIteration::Iterate(COutput *output,
 
     config_container[val_iZone]->SetIntIter(IntIter);
 
+//    if (config_container[val_iZone]->GetTrainNN()) {
+//        InitializeAdjoint(solver_container, geometry_container, config_container, val_iZone);
+//
+//        /*--- Record one mean flow iteration with NN variables as input ---*/
+//    	if (jrh_debug) cout << "Calling SetRecording() for NN Vars" << endl;
+//        SetRecording(output, integration_container, geometry_container, solver_container, numerics_container,
+//                     config_container, surface_movement, volume_grid_movement, FFDBox, val_iZone, NN_VARIABLES);
+//
+//        /*--- Set the adjoint values of the flow and objective function ---*/
+//        if (jrh_debug) cout << "Calling Initialize Adjoint() for NN Adjoint" << endl;
+//        InitializeAdjoint(solver_container, geometry_container, config_container, val_iZone);
+//
+//        if (jrh_debug) cout << "Calling AD::ComputeAdjoint for NN Adjoint" << endl;
+//        AD::ComputeAdjoint();
+//
+//        if (jrh_debug) cout << "Calling ExtractNNAdjoint() for NN Adjoint" << endl;
+//        solver_container[val_iZone][MESH_0][ADJTURB_SOL]->ExtractNNAdjoint(geometry_container[val_iZone][MESH_0],config_container[val_iZone]);
+//
+//        /*--- Record one mean flow iteration with Flow variables as input ---*/
+//        if (jrh_debug) cout << "SetRecording() for flow vars" << endl;
+//        SetRecording(output, integration_container, geometry_container, solver_container, numerics_container,
+//                     config_container, surface_movement, volume_grid_movement, FFDBox, val_iZone, FLOW_VARIABLES);
+//
+//
+//        AD::ClearAdjoints();
+//
+//        if (jrh_debug) cout << "Done with NN Adjoint Portion for this iteration" << endl;
+//    }
+
     /*--- Set the adjoint values of the flow and objective function ---*/
+
+    //cout << "JRH Debugging: In CDiscAdjMeanFlowIteration::Iterate, calling Initialize Adjoint" << endl;
 
     InitializeAdjoint(solver_container, geometry_container, config_container, val_iZone);
 
+    //cout << "JRH Debugging: In CDiscAdjMeanFlowIteration::Back from InitializeAdjoint(), calling AD::ComputeAdjoint()" << endl;
     /*--- Run the adjoint computation ---*/
 
     AD::ComputeAdjoint();
+
+    //cout << "JRH Debugging: Back from AD::ComputeAdjoint(), Calling solver_container->ExtractAdjoint()" << endl;
 
     /*--- Extract the adjoints of the conservative input variables and store them for the next iteration ---*/
 
@@ -1901,7 +1951,13 @@ void CDiscAdjMeanFlowIteration::Iterate(COutput *output,
 
     if (config_container[ZONE_0]->GetKind_Solver() == DISC_ADJ_RANS) {
       solver_container[val_iZone][MESH_0][ADJTURB_SOL]->ExtractAdjoint_Solution(geometry_container[val_iZone][MESH_0],
-                                                                                config_container[val_iZone]);
+                                                                                config_container[val_iZone]); //JRH Commented out 12192017, didn't work!
+      if(fiml && IntIter == nIntIter-1) { //JRH 09122017
+		//JRH 05012017 - Have Turbulent Solver call to extract beta_fiml gradients... need to call every iteration??
+    	//JRH 12192017 - Testing above question...causing overhead issues?? - Do need to call every iteration
+		solver_container[val_iZone][MESH_0][ADJTURB_SOL]->ExtractAdjoint_Variables(geometry_container[val_iZone][MESH_0],
+																			 config_container[val_iZone]);
+      }
     }
 
     /*--- Clear all adjoints to re-use the stored computational graph in the next iteration ---*/
@@ -1914,9 +1970,15 @@ void CDiscAdjMeanFlowIteration::Iterate(COutput *output,
                                                                           IntIter,log10(solver_container[val_iZone][MESH_0][ADJFLOW_SOL]->GetRes_RMS(0)), MESH_0);
 
     if(integration_container[val_iZone][ADJFLOW_SOL]->GetConvergence()) {
-      break;
+    	//JRH 09122017
+    	//JRH 12192017 - Commented out...causing overhead issues?
+    	//if (fiml) solver_container[val_iZone][MESH_0][ADJTURB_SOL]->ExtractAdjoint_Variables(geometry_container[val_iZone][MESH_0],
+    	//																			 config_container[val_iZone]);
+    	if (fiml) {
+    		cout << "JRH: Convergence Detected in Discrete Adjoint Solver" << endl;
+    	}
+    	else break;
     }
-
     /*--- Write the convergence history (only screen output) ---*/
 
     if(dual_time && (IntIter != nIntIter-1))
@@ -2037,6 +2099,22 @@ void CDiscAdjMeanFlowIteration::SetRecording(COutput *output,
 
   config_container[val_iZone]->SetExtIter(ExtIter);
 
+  /********************Start OF ADDITION from JRH *****************************/
+  /* --- JRH - ADDED FROM https://github.com/su2code/SU2/blob/6d8a4a8ccb3829e30723d8dcf452aba1aa93b333/SU2_CFD/src/driver_structure.cpp */
+
+ /*--- Read the target pressure ---*/
+
+  if (config_container[ZONE_0]->GetInvDesign_Cp() == YES)
+    output->SetCp_InverseDesign(solver_container[ZONE_0][MESH_0][FLOW_SOL],
+        geometry_container[ZONE_0][MESH_0], config_container[ZONE_0], ExtIter);
+
+  /*--- Read the target heat flux ---*/
+
+  if (config_container[ZONE_0]->GetInvDesign_HeatFlux() == YES)
+    output->SetHeat_InverseDesign(solver_container[ZONE_0][MESH_0][FLOW_SOL],
+        geometry_container[ZONE_0][MESH_0], config_container[ZONE_0], ExtIter);
+  /********************END OF ADDITION from JRH *****************************/
+
   /*--- Register flow variables and objective function as output ---*/
   
   /*--- For flux-avg or area-avg objective functions the 1D values must be calculated first ---*/
@@ -2084,7 +2162,13 @@ void CDiscAdjMeanFlowIteration::RegisterInput(CSolver ****solver_container, CGeo
     solver_container[iZone][MESH_0][ADJFLOW_SOL]->RegisterVariables(geometry_container[iZone][MESH_0], config_container[iZone]);
     
     if (turbulent) {
+
+      bool fiml = (config_container[iZone]->GetKind_Turb_Model()==SA_FIML);
       solver_container[iZone][MESH_0][ADJTURB_SOL]->RegisterSolution(geometry_container[iZone][MESH_0], config_container[iZone]);
+
+      //Below line was not here before JRH mods!!
+      if (fiml) solver_container[iZone][MESH_0][ADJTURB_SOL]->RegisterVariables(geometry_container[iZone][MESH_0], config_container[iZone]); // JRH 05012017
+      //Must call RegisterVariables from turbulent solver so that beta_fiml can be set while recording is active.
     }
   }
   if (kind_recording == GEOMETRY_VARIABLES) {
@@ -2093,6 +2177,9 @@ void CDiscAdjMeanFlowIteration::RegisterInput(CSolver ****solver_container, CGeo
     
     geometry_container[iZone][MESH_0]->RegisterCoordinates(config_container[iZone]);
     
+  }
+  if (kind_recording == NN_VARIABLES) {
+	  solver_container[iZone][MESH_0][ADJTURB_SOL]->RegisterNNSolution(geometry_container[iZone][MESH_0], config_container[iZone]);
   }
 
 }
@@ -2113,6 +2200,9 @@ void CDiscAdjMeanFlowIteration::SetDependencies(CSolver ****solver_container, CG
     solver_container[iZone][MESH_0][FLOW_SOL]->Preprocessing(geometry_container[iZone][MESH_0],solver_container[iZone][MESH_0], config_container[iZone], MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, true);
 
     solver_container[iZone][MESH_0][TURB_SOL]->Postprocessing(geometry_container[iZone][MESH_0],solver_container[iZone][MESH_0], config_container[iZone], MESH_0);
+
+    //if (config_container[ZONE_0]->GetTrainNN()) solver_container[iZone][MESH_0][TURB_SOL]->ForwardPropagate(); //JRH 05012018
+
   }
 
 }
@@ -2136,18 +2226,19 @@ void CDiscAdjMeanFlowIteration::RegisterOutput(CSolver ****solver_container, CGe
 void CDiscAdjMeanFlowIteration::InitializeAdjoint(CSolver ****solver_container, CGeometry ***geometry_container, CConfig **config_container, unsigned short iZone) {
   
   /*--- Initialize the adjoint of the objective function (typically with 1.0) ---*/
-  
+  //cout << "JRH Debugging: In CDiscAdjMeanFlowIteration::InitializeAdjoint(), Calling SetAdj_ObjFunc()" << endl;
   solver_container[iZone][MESH_0][ADJFLOW_SOL]->SetAdj_ObjFunc(geometry_container[iZone][MESH_0], config_container[iZone]);
-  
+  //cout << "JRH Debugging: In CDiscAdjMeanFlowIteration::InitializeAdjoint(), Back from SetAdj_ObjFunc(), Calling SetAdjoint_Output()" << endl;
   /*--- Initialize the adjoints the conservative variables ---*/
   
   solver_container[iZone][MESH_0][ADJFLOW_SOL]->SetAdjoint_Output(geometry_container[iZone][MESH_0],
                                                                   config_container[iZone]);
-  
+  //cout << "JRH Debugging: In CDiscAdjMeanFlowIteration::InitializeAdjoint(), Back from adj meanflow SetAdj_Output(), Calling SetAdjoint_Output() for adj turb solver" << endl;
   if (turbulent) {
     solver_container[iZone][MESH_0][ADJTURB_SOL]->SetAdjoint_Output(geometry_container[iZone][MESH_0],
                                                                     config_container[iZone]);
   }
+  //cout << "JRH Debugging: In CDiscAdjMeanFlowIteration::InitializeAdjoint(), done with SetAdjoint_Output" << endl;
 }
 void CDiscAdjMeanFlowIteration::Update(COutput *output,
                                        CIntegration ***integration_container,

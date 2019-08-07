@@ -157,6 +157,10 @@ inline void CNumerics::SetPrimitive(su2double *val_v_i, su2double *val_v_j) {
   V_j = val_v_j;
 }
 
+inline void CNumerics::SetBetaFiml(su2double val_beta_fiml) { //JRH - Routine required to set beta_fiml in numerics class - 04032017
+	beta_fiml = val_beta_fiml;
+}
+
 inline void CNumerics::SetSecondary(su2double *val_s_i, su2double *val_s_j) {
     S_i = val_s_i;
     S_j = val_s_j;
@@ -227,6 +231,19 @@ inline void CNumerics::SetCrossProduction(su2double val_crossproduction) { }
 inline su2double CNumerics::GetProduction(void) { return 0; }
 
 inline su2double CNumerics::GetDestruction(void) { return 0; }
+
+//JRH - Adding functions to return features so they can be stored in CVariable nodes - 02062018
+inline su2double CNumerics::GetSTildeSA(void) { return 0; }
+inline su2double CNumerics::GetChiSA(void) { return 0; }
+inline su2double CNumerics::GetDeltaCriterion(void) { return 0; }
+inline su2double CNumerics::GetFwSA(void) { return 0; }
+inline su2double CNumerics::GetRSA(void) { return 0; }
+inline su2double CNumerics::GetStrainMagnitude(void) { return 0; }
+inline su2double CNumerics::GetVorticityMagnitude(void) { return 0; }
+inline su2double CNumerics::GetGammaTrans(void) { return 0; }
+inline su2double CNumerics::GetWallDist(void) { return 0; }
+inline su2double CNumerics::GetkSALSA(void) { return 0; }
+
 
 inline su2double CNumerics::GetCrossProduction(void) { return 0; }
 
@@ -428,6 +445,18 @@ inline su2double CSourcePieceWise_TurbSA::GetProduction(void) { return Productio
 
 inline su2double CSourcePieceWise_TurbSA::GetDestruction(void) { return Destruction; }
 
+//JRH - Adding functions to return features so they can be stored in CVariable nodes - 02062018
+inline su2double CSourcePieceWise_TurbSA::GetSTildeSA(void) { return Shat; }
+inline su2double CSourcePieceWise_TurbSA::GetChiSA(void) { return Ji; }
+inline su2double CSourcePieceWise_TurbSA::GetDeltaCriterion(void) { return Delta_Criterion; }
+inline su2double CSourcePieceWise_TurbSA::GetFwSA(void) { return fw; }
+inline su2double CSourcePieceWise_TurbSA::GetRSA(void) { return r; }
+inline su2double CSourcePieceWise_TurbSA::GetStrainMagnitude(void) { return StrainMag_i; }
+inline su2double CSourcePieceWise_TurbSA::GetVorticityMagnitude(void) { return Omega; }
+inline su2double CSourcePieceWise_TurbSA::GetGammaTrans(void) { return gamma_trans; }
+inline su2double CSourcePieceWise_TurbSA::GetWallDist(void) { return wall_dist; }
+inline su2double CSourcePieceWise_TurbSA::GetkSALSA(void) { return k_SALSA; }
+
 inline su2double CSourcePieceWise_TurbSA::GetCrossProduction(void) { return CrossProduction; }
 
 inline void CSourcePieceWise_TurbSA_Neg::SetIntermittency(su2double intermittency_in) { intermittency = intermittency_in; }
@@ -441,6 +470,18 @@ inline void CSourcePieceWise_TurbSA_Neg::SetCrossProduction(su2double val_crossp
 inline su2double CSourcePieceWise_TurbSA_Neg::GetProduction(void) { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetDestruction(void) { return Destruction; }
+
+//JRH - Adding functions to return features so they can be stored in CVariable nodes - 02062018
+inline su2double CSourcePieceWise_TurbSA_Neg::GetSTildeSA(void) { return Shat; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetChiSA(void) { return Ji; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetDeltaCriterion(void) { return Delta_Criterion; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetFwSA(void) { return fw; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetRSA(void) { return r; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetStrainMagnitude(void) { return StrainMag_i; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetVorticityMagnitude(void) { return Omega; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetGammaTrans(void) { return gamma_trans; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetWallDist(void) { return wall_dist; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetkSALSA(void) { return k_SALSA; }
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetCrossProduction(void) { return CrossProduction; }
 

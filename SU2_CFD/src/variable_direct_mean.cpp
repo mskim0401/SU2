@@ -57,6 +57,9 @@ CEulerVariable::CEulerVariable(void) : CVariable() {
   nSecondaryVarGrad = 0;
  
   Undivided_Laplacian = NULL;
+
+  beta_fiml = 1.0;
+  beta_fiml_train = 1.0;
  
 }
 
@@ -70,6 +73,9 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
   bool viscous = config->GetViscous();
   bool windgust = config->GetWind_Gust();
   
+  beta_fiml = 1.0;
+  beta_fiml_train = 1.0;
+
   /*--- Array initialization ---*/
   
   HB_Source = NULL;
@@ -222,6 +228,9 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
   bool viscous = config->GetViscous();
   bool windgust = config->GetWind_Gust();
   
+  beta_fiml = 1.0;
+  beta_fiml_train = 1.0;
+
   /*--- Array initialization ---*/
   
   HB_Source = NULL;
@@ -462,6 +471,11 @@ void CEulerVariable::SetSecondaryVar(CFluidModel *FluidModel) {
    SetdPde_rho(FluidModel->GetdPde_rho());
 
 }
+//JRH - Added routine to retrieve beta FIML correction factor - 04012017
+su2double CEulerVariable::GetBetaFiml() { return beta_fiml;}
+void CEulerVariable::SetBetaFiml(su2double val_beta_fiml) {beta_fiml = val_beta_fiml;}
+su2double CEulerVariable::GetBetaFimlTrain() { return beta_fiml_train; }
+void CEulerVariable::SetBetaFimlTrain(su2double val_beta_fiml_train) { beta_fiml_train = val_beta_fiml_train; }
 
 CNSVariable::CNSVariable(void) : CEulerVariable() { }
 
@@ -474,6 +488,9 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     Viscosity_Inf   = config->GetViscosity_FreeStreamND();
     Prandtl_Lam     = config->GetPrandtl_Lam();
     Prandtl_Turb    = config->GetPrandtl_Turb();
+
+    beta_fiml = 1.0;
+    beta_fiml_train = 1.0;
   
 }
 
@@ -485,6 +502,9 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     Viscosity_Inf   = config->GetViscosity_FreeStreamND();
     Prandtl_Lam     = config->GetPrandtl_Lam();
     Prandtl_Turb    = config->GetPrandtl_Turb();
+
+    beta_fiml = 1.0;
+    beta_fiml_train = 1.0;
 }
 
 CNSVariable::~CNSVariable(void) { }
@@ -636,3 +656,8 @@ void CNSVariable::SetSecondaryVar(CFluidModel *FluidModel) {
 
 }
 
+//JRH - Added routine to retrieve beta FIML correction factor - 04012017
+su2double CNSVariable::GetBetaFiml() { return beta_fiml;}
+void CNSVariable::SetBetaFiml(su2double val_beta_fiml) {beta_fiml = val_beta_fiml;}
+su2double CNSVariable::GetBetaFimlTrain() { return beta_fiml_train; }
+void CNSVariable::SetBetaFimlTrain(su2double val_beta_fiml_train) { beta_fiml_train = val_beta_fiml_train; }

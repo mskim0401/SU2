@@ -403,3 +403,7 @@ inline void CVertex::SetVarRot(su2double* val) {
   for (unsigned short iDim = 0; iDim < nDim; iDim++)
     VarRot[iDim] = val[iDim];
 }
+
+//JRH 03282018 - Functions to get/return fiml correction from CGeometry class
+inline void CPoint::SetBetaFiml(su2double val_beta_fiml) { beta_fiml = val_beta_fiml; }
+inline su2double CPoint::GetBetaFiml(void) { return beta_fiml; }

@@ -116,6 +116,8 @@ public:
   dist_j;      /*!< \brief Distance of point j to the nearest wall. */
   su2double Temp_i,  /*!< \brief Temperature at point i. */
   Temp_j;      /*!< \brief Temperature at point j. */
+  su2double beta_fiml; /*!< \brief FIML correction at node. */ //JRH - 04032017
+  su2double beta_fiml_grad; /*!< \brief Variable to store gradient of FIML correction at node. */ //JRH - 05032017
   su2double *Temp_tr_i, /*!< \brief Temperature transl-rot at point i. */
   *Temp_tr_j;/*!< \brief Temperature transl-rot at point j. */
   su2double *Temp_vib_i, /*!< \brief Temperature vibrational at point i. */
@@ -202,6 +204,10 @@ public:
   *WindGustDer_j;      /*!< \brief Wind gust derivatives at point j. */
   su2double *Vorticity_i, *Vorticity_j;  /*!< \brief Vorticity. */
   su2double StrainMag_i, StrainMag_j;   /*!< \brief Strain rate magnitude. */
+  su2double Delta_Criterion; //JRH - 02072018
+  su2double wall_dist; //JRH - 03052018
+  su2double gamma_trans; //JRH - 03052018
+  su2double k_SALSA;
   
   su2double *l, *m;
   
@@ -300,6 +306,12 @@ public:
    */
   void SetPrimitive(su2double *val_v_i, su2double *val_v_j);
   
+  /*!
+   * \brief Set the value of the primitive variables.
+   * \param[in] val_v_i - Value of the primitive variable at node? i
+   */
+  void SetBetaFiml(su2double val_beta_fiml); //JRH 04032017
+
   /*!
    * \brief Set the value of the primitive variables.
    * \param[in] val_v_i - Value of the primitive variable at point i.
@@ -1314,6 +1326,18 @@ public:
    */
   virtual su2double GetDestruction(void);
   
+  //JRH - Following form of GetProduction() to exract features for ML 02062018
+  virtual su2double GetSTildeSA(void);
+  virtual su2double GetChiSA(void);
+  virtual su2double GetDeltaCriterion(void);
+  virtual su2double GetFwSA(void);
+  virtual su2double GetRSA(void);
+  virtual su2double GetStrainMagnitude(void);
+  virtual su2double GetVorticityMagnitude(void);
+  virtual su2double GetGammaTrans(void);
+  virtual su2double GetWallDist(void);
+  virtual su2double GetkSALSA(void);
+
   /*!
    * \brief Residual for source term integration.
    * \param[in] val_crossproduction - Value of the CrossProduction.
@@ -4029,6 +4053,11 @@ private:
   bool incompressible;
   bool rotating_frame;
   bool transition;
+  bool fiml; //JRH - Added boolean fiml - 04032017
+  bool fiml_prod;
+  bool fiml_kappa;
+  bool fiml_apg;
+  bool fiml_apgr;
   su2double intermittency;
   su2double Production, Destruction, CrossProduction;
   
@@ -4085,6 +4114,19 @@ public:
    */
   su2double GetProduction(void);
   
+  //JRH - Following form of GetProduction() to exract features for ML 02062018
+  su2double GetSTildeSA(void);
+  su2double GetChiSA(void);
+  su2double GetDeltaCriterion(void);
+  su2double GetFwSA(void);
+  su2double GetRSA(void);
+  su2double GetStrainMagnitude(void);
+  su2double GetVorticityMagnitude(void);
+  su2double GetGammaTrans(void); //03052018
+  su2double GetWallDist(void); //03052018
+  su2double GetkSALSA(void);
+
+
   /*!
    * \brief  ______________.
    */
@@ -4185,6 +4227,19 @@ public:
    */
   su2double GetDestruction(void);
   
+  //JRH - Following form of GetProduction() to exract features for ML 02062018
+  su2double GetSTildeSA(void);
+  su2double GetChiSA(void);
+  su2double GetDeltaCriterion(void);
+  su2double GetFwSA(void);
+  su2double GetRSA(void);
+  su2double GetStrainMagnitude(void);
+  su2double GetVorticityMagnitude(void);
+  su2double GetGammaTrans(void); //03052018
+  su2double GetWallDist(void); //03052018
+  su2double GetkSALSA(void);
+
+
   /*!
    * \brief  ______________.
    */

@@ -157,11 +157,16 @@ class Config(ordered_bunch):
         
         # handle unpacking cases
         def_dv = self['DEFINITION_DV']
-
-        n_dv   = sum(def_dv['SIZE'])
-
-        if not dv_old: dv_old = [0.0]*n_dv
-        assert len(dv_new) == len(dv_old) , 'unexpected design vector length'
+	if int(self.NPOIN) == 0:
+	    n_dv   = sum(def_dv['SIZE'])
+	else:
+	    if self.KIND_TRAIN_NN == 'WEIGHTS':
+		n_dv = len(dv_new)
+	    else: 
+		n_dv   = int(self.NPOIN)
+	if not dv_old: dv_old = [0.0]*n_dv
+	#if self.NPOIN == 0:
+	#assert len(dv_new) == len(dv_old) , 'unexpected design vector length'
         
         # handle param
         param_dv = self['DV_PARAM']
@@ -170,23 +175,33 @@ class Config(ordered_bunch):
         dv_scales = def_dv['SCALE']
 
         k = 0
-        for i, dv_scl in enumerate(dv_scales):
-            for j in range(def_dv['SIZE'][i]):
-                dv_new[k] = dv_new[k]*dv_scl;
-                dv_old[k] = dv_old[k]*dv_scl;
-                k = k + 1
-        
+	if int(self.NPOIN) == 0 :
+	    for i, dv_scl in enumerate(dv_scales):
+		for j in range(def_dv['SIZE'][i]):
+		    dv_new[k] = dv_new[k]*dv_scl;
+		    dv_old[k] = dv_old[k]*dv_scl;
+		    k = k + 1
+        else:
+	    for i in range(len(dv_new)) :
+		dv_new[i] = dv_new[i]*dv_scales[0]
+		dv_old[i] = dv_old[i]*dv_scales[0]
+	    
         # Change the parameters of the design variables
 
         self['DV_KIND'] = def_dv['KIND']
         param_dv['PARAM'] = def_dv['PARAM']
         param_dv['FFDTAG'] = def_dv['FFDTAG']
         param_dv['SIZE']   = def_dv['SIZE']
-
-        self.update({ 'DV_MARKER'        : def_dv['MARKER'][0] ,
-                      'DV_VALUE_OLD'     : dv_old              ,
-                      'DV_VALUE_NEW'     : dv_new              })
-        
+	
+	if int(self.NPOIN) == 0 :
+	    self.update({ 'DV_MARKER'        : def_dv['MARKER'][0] ,
+	                  'DV_VALUE_OLD'     : dv_old              ,
+	                  'DV_VALUE_NEW'     : dv_new              })
+	else :
+	    self.update({ 'DV_MARKER'        : def_dv['MARKER'][0] ,
+	                  'DV_VALUE_OLD'     : dv_old              ,
+	                  'DV_VALUE_NEW'     : dv_new              })		
+	    
     def __eq__(self,konfig):
         return super(Config,self).__eq__(konfig)
     def __ne__(self,konfig):
@@ -582,6 +597,20 @@ def read_config(filename):
       data_dict['VALUE_OBJFUNC_FILENAME'] = 'of_eval.dat'
     if not data_dict.has_key('GRAD_OBJFUNC_FILENAME'):
       data_dict['GRAD_OBJFUNC_FILENAME'] = 'of_grad.dat'
+    if not data_dict.has_key('NPOIN'):
+	data_dict['NPOIN'] = 0
+    if not data_dict.has_key('MIN_MAX_GRAD'):
+	data_dict['MIN_MAX_GRAD'] = 0
+    if not data_dict.has_key('LEARN_RATE'):
+	data_dict['LEARN_RATE'] = 0.01    
+    if not data_dict.has_key('NUM_CASES'):
+	data_dict['NUM_CASES'] = 0
+    else : data_dict['NUM_CASES'] = int(data_dict['NUM_CASES'])
+    if not data_dict.has_key('CONFIG_I'): data_dict['CONFIG_I'] = 0
+    if not data_dict.has_key('STOCHASTIC_GRAD'):
+	data_dict['STOCHASTIC_GRAD'] = "NO"
+    if not data_dict.has_key('MULTI_MESH'):
+	data_dict['MULTI_MESH'] = "NO"
  
     return data_dict
     
@@ -599,9 +628,15 @@ def write_config(filename,param_dict):
     temp_filename = "temp.cfg"
     shutil.copy(filename,temp_filename)
     output_file = open(filename,"w")
-
+    
     # break pointers
     param_dict = copy.deepcopy(param_dict)
+    npoin = int(param_dict.NPOIN)
+    if not npoin == 0:
+	if os.path.isfile('beta_fiml.dat') : 
+	    os.remove('beta_fiml.dat')
+	output_beta_fiml = open('beta_fiml.dat',"w")
+	output_beta_fiml.seek(0)
     
     for raw_line in open(temp_filename):
         # remove line returns
@@ -631,14 +666,25 @@ def write_config(filename,param_dict):
               
             # comma delimited list of floats
             if case("DV_VALUE_NEW") : pass
-            if case("DV_VALUE_OLD") : pass
-            if case("DV_VALUE")     :           
-                n_lists = len(new_value)
-                for i_value in range(n_lists):
-                    output_file.write("%s" % new_value[i_value])
-                    if i_value+1 < n_lists:
-                        output_file.write(", ")               
-                break
+            if case("DV_VALUE_OLD") : 
+		n_lists = len(new_value)
+		for i_value in range(n_lists):
+		    if (npoin == 0 or i_value == 0):
+			output_file.write("%s" % new_value[i_value])
+		    if (npoin == 0 and i_value+1 < n_lists):
+			output_file.write(", ")
+		break
+	    
+	    if case("DV_VALUE") :
+		n_lists = len(new_value)
+		for i_value in range(n_lists):
+		    if (npoin == 0 or i_value == 0):
+			output_file.write("%s" % new_value[i_value])
+		    if not npoin == 0 :
+			output_beta_fiml.write("%s\n" % new_value[i_value])
+		    if (npoin == 0 and i_value+1 < n_lists):
+			output_file.write(", ")
+		break		
             
             # comma delimited list of strings no paren's
             if case("DV_KIND")            : pass
@@ -731,7 +777,7 @@ def write_config(filename,param_dict):
                     if not this_kind in ['AOA','MACH_NUMBER']:
                         output_file.write(" | ")
                         # params
-                        if this_kind in ['FFD_SETTING','FFD_ANGLE_OF_ATTACK','FFD_CONTROL_POINT','FFD_NACELLE','FFD_GULL','FFD_TWIST_ANGLE','FFD_TWIST','FFD_TWIST_2D','FFD_ROTATION','FFD_CAMBER','FFD_THICKNESS','FFD_CONTROL_POINT_2D','FFD_CAMBER_2D','FFD_THICKNESS_2D']:
+                        if this_kind in ['FFD_SETTING','FFD_ANGLE_OF_ATTACK','FFD_CONTROL_POINT','FFD_NACELLE','FFD_GULL','FFD_TWIST_ANGLE','FFD_TWIST','FFD_TWIST_2D','FFD_ROTATION','FFD_CAMBER','FFD_THICKNESS','FFD_CONTROL_POINT_2D','FFD_CAMBER_2D','FFD_THICKNESS_2D','FIML']:
                             n_param = len(new_value['PARAM'][i_dv])
                             output_file.write("%s , " % new_value['FFDTAG'][i_dv])
                             for i_param in range(1,n_param):
@@ -794,7 +840,9 @@ def write_config(filename,param_dict):
         if not this_param in ['JOB_NUMBER']:
             print ( 'Warning: Parameter %s not found in config file and was not written' % (this_param) )
         
-    output_file.close()
+    if not npoin == 0:
+	output_file.close()
+	output_beta_fiml.close()
     os.remove( temp_filename )
     
 #: def write_config()

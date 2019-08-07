@@ -43,6 +43,8 @@ from .functions import function, update_mesh
 from ..io import redirect_folder, redirect_output
 import functions
 
+#from operator import add #to sum gradients JRH
+
 # ----------------------------------------------------------------------
 #  Main Gradient Interface
 # ----------------------------------------------------------------------
@@ -139,9 +141,19 @@ def gradient( func_name, method, config, state=None ):
                 if (config.DV_KIND[idv] == 'CUSTOM'):
                     grads[func_name_string][idv] = chaingrad[4+custom_dv]
                     custom_dv = custom_dv+1
-        # store
-        state['GRADIENTS'].update(grads)
 
+        #JRH - Scale gradients by objective function weight - NOT in original SU2...not sure why??
+        #For now only doing this for my problem, suspect should be done for all problems?
+        #10062017
+        #if int(config.NPOIN) != 0:
+        #    n_dv = len(grads[func_name_string])
+        #    for idv in range(n_dv):
+        #        grads[func_name_string][idv] = grads[func_name_string][idv]*float(config.OBJECTIVE_WEIGHT)
+        #Actually, shouldn't this be done in design.py?
+        
+        # store
+        state['GRADIENTS'].update(grads)            
+        
     # if not redundant
 
     # prepare output
@@ -194,111 +206,282 @@ def adjoint( func_name, config, state=None ):
     state = su2io.State(state)
     special_cases = su2io.get_specialCases(config)
     
-    # check for multiple objectives
-    multi_objective = (type(func_name)==list)
-    func_name_string = func_name
-    if multi_objective:   func_name_string = 'COMBO'
-
-    ADJ_NAME = 'ADJOINT_'+func_name_string
-
-    # console output
-    if config.get('CONSOLE','VERBOSE') in ['QUIET','CONCISE']:
-        log_adjoint = 'log_Adjoint.out'
-    else:
-        log_adjoint = None   
-
-    # ----------------------------------------------------
-    #  Redundancy Check
-    # ----------------------------------------------------    
-
-    # master redundancy check
-    if state['GRADIENTS'].has_key(func_name_string):
-        grads = state['GRADIENTS']
-        return copy.deepcopy(grads)
-
-    # ----------------------------------------------------
-    #  Direct Solution    
-    # ----------------------------------------------------        
-
-    # run (includes redundancy checks)
-    function( func_name, config, state )   
-
-    # ----------------------------------------------------    
-    #  Adaptation (not implemented)
-    # ----------------------------------------------------
-
-    #if not state.['ADAPTED_ADJOINT']:
-    #    config = su2run.adaptation(config)
-    #    state['ADAPTED_FUNC'] = True
-
-    # ----------------------------------------------------    
-    #  Adjoint Solution
-    # ----------------------------------------------------        
-
-    # files to pull
-    files = state['FILES']
-    pull = []; link = []    
-
-    # files: mesh
-    name = files['MESH']
-    name = su2io.expand_part(name,config)
-    link.extend(name)
-
-    # files: direct solution
-    name = files['DIRECT']
-    name = su2io.expand_time(name,config)
-    link.extend(name)
-
-    # files: adjoint solution
-    if files.has_key( ADJ_NAME ):
-        name = files[ADJ_NAME]
+    if config.NUM_CASES == 0 :
+        
+        # check for multiple objectives
+        multi_objective = (type(func_name)==list)
+        func_name_string = func_name
+        if multi_objective:   func_name_string = 'COMBO'
+    
+        ADJ_NAME = 'ADJOINT_'+func_name_string
+    
+        # console output
+        if config.get('CONSOLE','VERBOSE') in ['QUIET','CONCISE']:
+            log_adjoint = 'log_Adjoint.out'
+        else:
+            log_adjoint = None   
+    
+        # ----------------------------------------------------
+        #  Redundancy Check
+        # ----------------------------------------------------    
+    
+        # master redundancy check
+        if state['GRADIENTS'].has_key(func_name_string):
+            grads = state['GRADIENTS']
+            return copy.deepcopy(grads)
+    
+        # ----------------------------------------------------
+        #  Direct Solution    
+        # ----------------------------------------------------        
+    
+        # run (includes redundancy checks)
+        function( func_name, config, state )   
+    
+        # ----------------------------------------------------    
+        #  Adaptation (not implemented)
+        # ----------------------------------------------------
+    
+        #if not state.['ADAPTED_ADJOINT']:
+        #    config = su2run.adaptation(config)
+        #    state['ADAPTED_FUNC'] = True
+    
+        # ----------------------------------------------------    
+        #  Adjoint Solution
+        # ----------------------------------------------------        
+    
+        # files to pull
+        files = state['FILES']
+        pull = []; link = []    
+    
+        # files: mesh
+        name = files['MESH']
+        name = su2io.expand_part(name,config)
+        link.extend(name)
+    
+        # files: direct solution
+        name = files['DIRECT']
         name = su2io.expand_time(name,config)
-        link.extend(name)       
-    else:
-        config['RESTART_SOL'] = 'NO'
-
-    # files: target equivarea adjoint weights
-    if 'EQUIV_AREA' in special_cases:
-        pull.append(files['WEIGHT_NF'])   
-        pull.append(files['TARGET_EA'])
-
-    # files: target pressure coefficient
-    if 'INV_DESIGN_CP' in special_cases:
-        pull.append(files['TARGET_CP'])
-
-    # files: target heat flux coefficient
-    if 'INV_DESIGN_HEATFLUX' in special_cases:
-        pull.append(files['TARGET_HEATFLUX'])
-
-    # output redirection
-    with redirect_folder( ADJ_NAME, pull, link ) as push:
-        with redirect_output(log_adjoint):        
-
-            # setup config
-            if multi_objective:
-                config['OBJECTIVE_FUNCTION'] = ", ".join(func_name)
-            else:
-                config['OBJECTIVE_FUNCTION'] = func_name
-
-            # # RUN ADJOINT SOLUTION # #
-            info = su2run.adjoint(config)
-            su2io.restart2solution(config,info)
-            state.update(info)
-
-            # Gradient Projection
-            info = su2run.projection(config,state)
-            state.update(info)
-
-            # solution files to push
-            name = state.FILES[ADJ_NAME]
+        link.extend(name)
+    
+        # files: adjoint solution
+        if files.has_key( ADJ_NAME ):
+            name = files[ADJ_NAME]
             name = su2io.expand_time(name,config)
-            push.extend(name)
-
-    #: with output redirection
-
-    # return output 
-    grads = su2util.ordered_bunch()
-    grads[func_name_string] = state['GRADIENTS'][func_name_string]
+            link.extend(name)       
+        else:
+            config['RESTART_SOL'] = 'NO'
+    
+        # files: target equivarea adjoint weights
+        if 'EQUIV_AREA' in special_cases:
+            pull.append(files['WEIGHT_NF'])   
+            pull.append(files['TARGET_EA'])
+    
+        # files: target pressure coefficient
+        if 'INV_DESIGN_CP' in special_cases:
+            pull.append(files['TARGET_CP'])
+    
+        # files: target heat flux coefficient
+        if 'INV_DESIGN_HEATFLUX' in special_cases:
+            pull.append(files['TARGET_HEATFLUX'])
+        
+        # files: NN Weights File
+        if 'TRAIN_NN' in special_cases:
+            pull.append(files['TRAIN_NN'])        
+    
+        # output redirection
+        with redirect_folder( ADJ_NAME, pull, link ) as push:
+            with redirect_output(log_adjoint):        
+    
+                # setup config
+                if multi_objective:
+                    config['OBJECTIVE_FUNCTION'] = ", ".join(func_name)
+                else:
+                    config['OBJECTIVE_FUNCTION'] = func_name
+    
+                # # RUN ADJOINT SOLUTION # #
+                info = su2run.adjoint(config)
+                su2io.restart2solution(config,info)
+                state.update(info)
+    
+                # Gradient Projection
+                info = su2run.projection(config,state)
+                state.update(info)
+    
+                # solution files to push
+                name = state.FILES[ADJ_NAME]
+                name = su2io.expand_time(name,config)
+                push.extend(name)
+    
+        #: with output redirection
+    
+        # return output 
+        grads = su2util.ordered_bunch()
+        grads[func_name_string] = state['GRADIENTS'][func_name_string]
+    else : #MULTIPLE CONFIGS CASE - For NN Weights case JRH 10052018
+        from random import *
+        rcases = range(0, config.NUM_CASES)
+        if config.STOCHASTIC_GRAD == "YES" : cases_to_run = sample(rcases,1)
+        else : cases_to_run = rcases
+            
+        for i in cases_to_run :
+            
+            #sys.stdout.write('JRH: In functions.py->gradients running adjoint solution design # '+str(i)+'\n')
+            
+            # check for multiple objectives
+            multi_objective = (type(func_name)==list)
+            func_name_string = func_name
+            if multi_objective:   func_name_string = 'COMBO'
+        
+            ADJ_NAME = 'ADJOINT_'+func_name_string + '_' + str(i)
+            ADJ_NAME_NO_CONFIG_I = 'ADJOINT_'+func_name_string
+            # console output
+            if config.get('CONSOLE','VERBOSE') in ['QUIET','CONCISE']:
+                log_adjoint = 'log_Adjoint_' + str(i)+ '.out'
+            else:
+                log_adjoint = None   
+        
+            # ----------------------------------------------------
+            #  Redundancy Check
+            # ----------------------------------------------------    
+        
+            # master redundancy check
+            
+            #What to do here??
+            if i == 0 :
+                if state['GRADIENTS'].has_key(func_name_string):
+                    grads = state['GRADIENTS']
+                    return copy.deepcopy(grads)
+        
+            # ----------------------------------------------------
+            #  Direct Solution    
+            # ----------------------------------------------------        
+        
+            # run (includes redundancy checks)
+            if i == 0 : function( func_name, config, state )   
+        
+            # ----------------------------------------------------    
+            #  Adaptation (not implemented)
+            # ----------------------------------------------------
+        
+            #if not state.['ADAPTED_ADJOINT']:
+            #    config = su2run.adaptation(config)
+            #    state['ADAPTED_FUNC'] = True
+        
+            # ----------------------------------------------------    
+            #  Adjoint Solution
+            # ----------------------------------------------------        
+        
+            # files to pull
+            files = state['FILES']
+            pull = []; link = []    
+        
+            # files: mesh
+            if config.NUM_CASES > 1 and config.MULTI_MESH == "YES":
+                name = files['MESH'+'_'+str(i)]
+            else : 
+                name = files['MESH']
+            name = su2io.expand_part(name,config)
+            link.extend(name)
+            
+            if i == 0 : curr_config = config
+            else : 
+                curr_config = su2io.Config(files['CONFIG_'+str(i)])
+                curr_config.GRADIENT_METHOD = config.GRADIENT_METHOD
+                curr_config.NUMBER_PART = config.NUMBER_PART    
+                curr_config.DV_VALUE = config.DV_VALUE
+                curr_config.DV_VALUE_OLD = config.DV_VALUE_OLD
+                curr_config.DV_VALUE_NEW = config.DV_VALUE_NEW                
+            # files: direct solution
+            
+            curr_config.CONFIG_I= str(i)
+            
+            #if i == 0: name = files['DIRECT']
+            #else : name = files['DIRECT_'+str(i)]
+            name = files['DIRECT']
+            name = su2io.expand_time(name,curr_config)
+            link.extend(name)
+            
+            #map to correct solution filename
+            #temp = config.SOLUTION_FLOW_FILENAME
+            temp = 'solution_flow.dat'
+            #sys.stdout.write(str(temp))
+            solution_filename = su2io.add_suffix(temp,curr_config.CONFIG_I)
+            curr_config.SOLUTION_FLOW_FILENAME = solution_filename
+            #sys.stdout.write('JRH: Trying to link solution file: ' +solution_filename+'\n')
+            #sys.stdout.write('Name of name: ' + str(name))
+            link.extend([solution_filename])
+        
+            # files: adjoint solution
+            if files.has_key( ADJ_NAME ):
+                name = files[ADJ_NAME]
+                name = su2io.expand_time(name,curr_config)
+                link.extend(name)       
+            else:
+                config['RESTART_SOL'] = 'NO'
+        
+            # files: target equivarea adjoint weights
+            if 'EQUIV_AREA' in special_cases:
+                pull.append(files['WEIGHT_NF'])   
+                pull.append(files['TARGET_EA'])
+        
+            # files: target pressure coefficient
+            if 'INV_DESIGN_CP' in special_cases:
+                pull.append(files['TARGET_CP_'+str(i)])
+        
+            # files: target heat flux coefficient
+            if 'INV_DESIGN_HEATFLUX' in special_cases:
+                pull.append(files['TARGET_HEATFLUX_'+str(i)])
+            
+            # files: NN Weights File
+            if 'TRAIN_NN' in special_cases:
+                pull.append(files['TRAIN_NN'])        
+        
+            # output redirection
+            with redirect_folder( ADJ_NAME, pull, link ) as push:
+                with redirect_output(log_adjoint):        
+        
+                    # setup config
+                    if multi_objective:
+                        config['OBJECTIVE_FUNCTION'] = ", ".join(func_name)
+                    else:
+                        config['OBJECTIVE_FUNCTION'] = func_name
+        
+                    # # RUN ADJOINT SOLUTION # #
+                    info = su2run.adjoint(curr_config)
+                    su2io.restart2solution(curr_config,info)
+                    state.update(info)
+        
+                    # Gradient Projection
+                    info = su2run.projection(curr_config,state)
+                    state.update(info)
+        
+                    # solution files to push
+                    name = state.FILES[ADJ_NAME_NO_CONFIG_I]
+                    name = su2io.expand_time(name,config)
+                    if config.MULTI_MESH == "YES" : 
+                        if curr_config.OBJECTIVE_FUNCTION != config.OBJECTIVE_FUNCTION :
+                            #THIS IS A COMPLETE HACK..BUT WORKS???
+                            #Loses track of solution files with different OFs, hack to make sure
+                            #system finds a solution and moves on...these files are not needed
+                            #for anything, probably only needed for grid gradient computation...
+                            #which we don't do for FIML... JRH 04272019
+                            os.system("cp solution_adj_*.dat solution_adj_invpressfiml.dat")
+                            os.system("cp solution_adj_invpressfiml.dat solution_adj_invcclfiml.dat")
+                            os.system("cp solution_adj_*.dat ../")
+                    push.extend(name)
+        
+            #: with output redirection
+        
+            # return output 
+            if config.STOCHASTIC_GRAD :
+                grads = su2util.ordered_bunch()
+                grads[func_name_string] = state['GRADIENTS'][func_name_string] 
+            else :
+                if i == 0 : grads = su2util.ordered_bunch()
+                if i == 0 : grads[func_name_string] = state['GRADIENTS'][func_name_string] 
+                else : grads[func_name_string] = [sum(x) for x in zip(state['GRADIENTS'][func_name_string],
+                                                                  state['GRADIENTS'][func_name_string])]
+            #sys.stdout.write(str(grads[func_name_string]))
     return grads
 
 #: def adjoint()

@@ -481,6 +481,53 @@ inline su2double CVariable::GetF2blending(void) { return 0; }
 
 inline su2double CVariable::GetmuT() { return 0;}
 
+//JRH - Added routine to retrieve beta FIML correction factor - 04012017
+inline su2double CVariable::GetBetaFiml() { return 0;}
+
+//JRH - Added routine to set beta FIML correction factor - 04242017
+inline void CVariable::SetBetaFiml(su2double val_beta_fiml) {beta_fiml = val_beta_fiml;}
+inline void CVariable::SetBetaFimlTrain(su2double val_beta_fiml_train) {beta_fiml_train = val_beta_fiml_train;}
+
+inline void CVariable::SetDES_fd(su2double val_fd) {fd = val_fd;} // JRH 08092018
+inline su2double CVariable::GetDES_fd() {return 0;} //JRH 08092018
+
+inline void CVariable::RegisterBeta(bool input) { } //JRH 05022018
+inline void CVariable::SetAdjointBeta(su2double val_adjoint_beta) { }//JRH 05022018
+inline su2double CVariable::GetAdjointBeta() { return 0; } //JRH 05022018
+
+//JRH - Added routine to retrieve beta FIML correction factor - 05032017
+inline su2double CVariable::GetBetaFimlGrad() { return 0; }
+inline su2double CVariable::GetBetaFimlTrain() { return 0; }
+
+//JRH - Added routine to set beta FIML correction factor - 05032017
+inline void CVariable::SetBetaFimlGrad(su2double val_beta_fiml_grad) { }
+
+inline su2double CVariable::GetProduction() {return 0;}
+inline su2double CVariable::GetDestruction() {return 0;}
+inline su2double CVariable::GetSTildeSA() {return 0;}
+inline su2double CVariable::GetChiSA() {return 0;}
+inline su2double CVariable::GetDeltaCriterion() {return 0;}
+inline su2double CVariable::GetFwSA() {return 0;}
+inline su2double CVariable::GetRSA() {return 0;}
+inline su2double CVariable::GetStrainMagnitude() {return 0;}
+inline su2double CVariable::GetVorticityMagnitude() {return 0;}
+inline su2double CVariable::GetGammaTrans(void) { return 0; }
+inline su2double CVariable::GetWallDist(void) { return 0; }
+inline su2double CVariable::GetkSALSA(void) { return 0; }
+
+inline void CVariable::SetProduction(su2double val_production) { }
+inline void CVariable::SetDestruction(su2double val_destruction) { }
+inline void CVariable::SetSTildeSA(su2double val_STildeSA) { }
+inline void CVariable::SetChiSA(su2double val_ChiSA) { }
+inline void CVariable::SetDeltaCriterion(su2double val_Delta_Criterion) { }
+inline void CVariable::SetFwSA(su2double val_FwSA) { }
+inline void CVariable::SetRSA(su2double val_RSA) { }
+inline void CVariable::SetStrainMagnitude(su2double val_StrainMag_i) { }
+inline void CVariable::SetVorticityMagnitude(su2double val_Omega) { }
+inline void CVariable::SetGammaTrans(su2double val_Gamma_Trans) { }
+inline void CVariable::SetWallDist(su2double val_Wall_Dist) { }
+inline void CVariable::SetkSALSA(su2double val_k_SALSA) { }
+
 inline void CVariable::SetmuT(su2double val_muT) { }
 
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }

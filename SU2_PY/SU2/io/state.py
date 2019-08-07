@@ -228,6 +228,13 @@ class State(ordered_bunch):
         targetea_name = 'TargetEA.dat'
         targetcp_name = 'TargetCp.dat'
         targetheatflux_name = 'TargetHeatFlux.dat'
+        
+        if config.NUM_CASES > 1 :
+            otherConfigs_name = ['config0.cfg']
+            for i in range(1,config.NUM_CASES) :
+                otherConfigs_name.append('config'+str(i)+'.cfg')
+        
+        nnWeights_name = 'nn_weights.dat'
 
         adj_map = get_adjointSuffix()
         
@@ -239,36 +246,98 @@ class State(ordered_bunch):
                 if os.path.exists(filename):
                     files[label] = filename
                     print 'Found: %s' % filename
-            else:
-                assert os.path.exists(files[label]) , 'state expected file: %s' % filename
+                else :
+                    files[label] = filename
+                    print 'Did not find expected file: %s' % filename
+                    print 'Creating Placeholder File: %s' % filename
+                    f= open(filename,"w+")
+                    f.write('PLACEHOLDER FILE')
+                    f.close()
+            #else:
+                #assert os.path.exists(files[label]) , 'state expected file: %s' % filename
         #: register_file()                
 
+        
         # mesh
-        register_file('MESH',mesh_name)
+        #Added if statements for multiple meshes
+        if config.NUM_CASES > 1 and config.MULTI_MESH :
+            for i in range(0,config.NUM_CASES) : 
+                mesh_name_split = mesh_name.split("_")
+                mesh_name = mesh_name_split[0]+'_'+str(i)+'.su2'
+                register_file('MESH'+'_'+str(i),mesh_name)
+        else : register_file('MESH',mesh_name)
         
-        # direct solution
-        if restart:
-            register_file('DIRECT',direct_name)
-        
-        # adjoint solutions
-        if restart:
-            for obj,suff in adj_map.iteritems():
-                ADJ_LABEL = 'ADJOINT_' + obj
-                adjoint_name_suffixed = add_suffix(adjoint_name,suff)
-                register_file(ADJ_LABEL,adjoint_name_suffixed)
-        
-        # equivalent area
-        if 'EQUIV_AREA' in special_cases:
-            register_file('TARGET_EA',targetea_name)
-        
-        # pressure inverse design
-        if 'INV_DESIGN_CP' in special_cases:
-          register_file('TARGET_CP',targetcp_name)
+        # Copy file containing weights of neural network if restart and NN
+        if 'TRAIN_NN' in special_cases:
+            register_file('TRAIN_NN',nnWeights_name)
+            #print('NN Training Requested, registered weights file')
             
-        # heat flux inverse design
-        if 'INV_DESIGN_HEATFLUX' in special_cases:
-          register_file('TARGET_HEATFLUX',targetheatflux_name)
-        
+        #JRH 10042018 - Multiple configs/solutions possible now, single config (normal) case
+        if config.NUM_CASES == 0 : 
+            
+            # direct solution
+            if restart:
+                register_file('DIRECT',direct_name)
+            
+            # adjoint solutions
+            if restart:
+                for obj,suff in adj_map.iteritems():
+                    ADJ_LABEL = 'ADJOINT_' + obj
+                    adjoint_name_suffixed = add_suffix(adjoint_name,suff)
+                    register_file(ADJ_LABEL,adjoint_name_suffixed)
+                   
+            
+            # equivalent area
+            if 'EQUIV_AREA' in special_cases:
+                register_file('TARGET_EA',targetea_name)
+            
+            # pressure inverse design
+            if 'INV_DESIGN_CP' in special_cases:
+                register_file('TARGET_CP',targetcp_name)
+                
+            # heat flux inverse design
+            if 'INV_DESIGN_HEATFLUX' in special_cases:
+                register_file('TARGET_HEATFLUX',targetheatflux_name)
+        else : #Multiple configs and solution/target files
+            #direct_name = str(direct_name[0])
+            #sys.stdout.write(direct_name)
+            direct_str = str(direct_name)
+            targetea_str = str(targetea_name)
+            targetcp_str = str(targetcp_name)
+            targetheatflux_str = str(targetheatflux_name)
+            for i in range(0,config.NUM_CASES) :
+                # direct solution 
+                direct_name = direct_str.split(".")
+                if i > 0 :
+                    register_file('CONFIG_'+str(i),  otherConfigs_name[i])
+                    
+                if restart:
+                    register_file('DIRECT_'+str(i),direct_name[0]+'_'+str(i)+'.'+direct_name[1])
+                
+                # adjoint solutions
+                if restart:
+                    for obj,suff in adj_map.iteritems():
+                        ADJ_LABEL = 'ADJOINT_' + obj
+                        adjoint_name_suffixed = add_suffix(adjoint_name,suff)
+                        adjoint_name_suffixed = adjoint_name_suffixed.split(".")
+                        register_file(ADJ_LABEL+'_'+str(i),adjoint_name_suffixed[0]+'_'+str(i)+'.'+
+                                      adjoint_name_suffixed[1])
+                       
+                
+                # equivalent area
+                if 'EQUIV_AREA' in special_cases:
+                    targetea_name = targetea_str.split(".")
+                    register_file('TARGET_EA'+'_'+str(i),targetea_name[0]+'_'+str(i)+'.'+targetea_name[1])
+                
+                # pressure inverse design
+                if 'INV_DESIGN_CP' in special_cases:
+                    targetcp_name = targetcp_str.split(".")
+                    register_file('TARGET_CP'+'_'+str(i),targetcp_name[0]+'_'+str(i)+'.'+targetcp_name[1])
+                    
+                # heat flux inverse design
+                if 'INV_DESIGN_HEATFLUX' in special_cases:
+                    targetheatflux_name = targetheatflux_str.split(".")
+                    register_file('TARGET_HEATFLUX'+'_'+str(i),targetheatflux_name[0]+'_'+str(i)+'.'+targetheatflux_name[1])                
         return
     
     def __setitem__(self,k,v):

@@ -54,3 +54,10 @@ SU2_DIRECTDIFF/
 # ignore the bin/ directory
 bin/
 
+# ignore documents
+*.pdf
+*.xls
+
+# ignore running directories
+jon_cases
+TestCases

@@ -570,7 +570,7 @@ inline void CConfig::SetFinestMesh(unsigned short val_finestmesh) { FinestMesh =
 
 inline void CConfig::SubtractFinestMesh(void) { FinestMesh = FinestMesh-1; }
 
-inline unsigned short CConfig::GetDesign_Variable(unsigned short val_dv) { return Design_Variable[val_dv]; }
+inline unsigned short CConfig::GetDesign_Variable(unsigned long val_dv) { return Design_Variable[val_dv]; }
 
 inline unsigned short CConfig::GetConvCriteria(void) { return ConvCriteria; }
 
@@ -596,9 +596,9 @@ inline string CConfig::GetFFDTag(unsigned short val_dv) {	return FFDTag[val_dv];
 
 inline string CConfig::GetTagFFDBox(unsigned short val_ffd) {	return TagFFDBox[val_ffd]; }
 
-inline unsigned short CConfig::GetnDV(void) {	return nDV; }
+inline unsigned long CConfig::GetnDV(void) {	return nDV_long; }
 
-inline unsigned short CConfig::GetnDV_Value(unsigned short iDV) {	return nDV_Value[iDV]; }
+inline unsigned short CConfig::GetnDV_Value(unsigned long iDV) {	return nDV_Value[iDV]; }
 
 inline unsigned short CConfig::GetnFFDBox(void) {	return nFFDBox; }
 
@@ -1176,9 +1176,9 @@ inline bool CConfig::GetEngine_HalfModel(void) { return Engine_HalfModel; }
 
 inline bool CConfig::GetActDisk_SU2_DEF(void) { return ActDisk_SU2_DEF; }
 
-inline su2double CConfig::GetDV_Value(unsigned short val_dv, unsigned short val_value) { return DV_Value[val_dv][val_value]; }
+inline su2double CConfig::GetDV_Value(unsigned long val_dv, unsigned short val_value) { return DV_Value[val_dv][val_value]; }
 
-inline void CConfig::SetDV_Value(unsigned short val_dv, unsigned short val_ind, su2double val) { DV_Value[val_dv][val_ind] = val; }
+inline void CConfig::SetDV_Value(unsigned long val_dv, unsigned short val_ind, su2double val) { DV_Value[val_dv][val_ind] = val; }
 
 inline su2double CConfig::GetOrderMagResidual(void) { return OrderMagResidual; }
 
@@ -1237,6 +1237,12 @@ inline bool CConfig::GetSmoothNumGrid(void) { return SmoothNumGrid; }
 inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = val_smoothnumgrid; }
 
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
+
+inline unsigned short CConfig::GetKind_SA_Fiml(void) { return Kind_SA_Fiml; } //JRH 11172017
+
+inline unsigned short CConfig::GetKind_NN_Scaling(void) { return Kind_NN_Scaling; } //JRH 05102018
+
+inline unsigned short CConfig::GetnBins(void) { return nBins; } //JRH 05142018
 
 inline unsigned short CConfig::GetKind_Trans_Model(void) { return Kind_Trans_Model; }
 
@@ -1371,6 +1377,46 @@ inline bool CConfig::GetEval_dCD_dCX(void) { return Eval_dCD_dCX; }
 inline bool CConfig::GetDiscard_InFiles(void) { return Discard_InFiles; }
 
 inline su2double CConfig::GetTarget_CL(void) { return Target_CL; }
+
+inline su2double CConfig::GetTarget_InverseCL(void) { return Target_Inverse_CL; } // JRH 10112017
+
+inline su2double CConfig::GetTarget_InverseCD(void) { return Target_Inverse_CD; } // JRH 10112017
+
+inline su2double CConfig::GetLambdaFiml(void) { return Lambda_FIML; } // JRH 10112017
+
+inline su2double CConfig::GetLambdaGridFiml(void) {return Lambda_Grid_FIML;} // JRH 04062018
+
+inline su2double CConfig::GetLambdaLossFiml(void) {return Lambda_Loss_FIML;} //JRH 05082018
+
+inline su2double CConfig::GetPercentHoldout(void) {return Percent_Holdout;} //JRH 05082018
+
+inline bool CConfig::GetTrainNN(void) {return Train_NN;} //JRH 04172018
+
+inline bool CConfig::GetSALSA(void) {return salsa;} //JRH 03012019
+
+inline bool CConfig::GetL2Reg(void) {return l2_reg;} //JRH 08022019
+
+inline bool CConfig::GetCp_avg(void) {return Cp_avg;} //JRH 03012019
+
+inline bool CConfig::GetMultiMesh(void) {return multi_mesh;} // JRH 04262019
+
+inline unsigned short CConfig::GetConfigNum(void) {return config_num; } //JRH 04262019
+
+inline bool CConfig::GetFilterShield(void) {return Filter_Shield;} //JRH 11202018
+
+inline unsigned short CConfig::GetKindTrainNN(void) {return Kind_Train_NN;} //JRH 06282018
+
+inline unsigned short CConfig::GetNHiddenLayers(void) {return N_Hidden_Layers;} //JRH 04172018
+
+inline unsigned long CConfig::GetNNeurons(void) {return N_Neurons;} //JRH 04172018
+
+inline unsigned long CConfig::GetIterStartNN(void) {return Iter_Start_NN;} //JRH 04182018
+
+inline unsigned long CConfig::GetIterStopNNScaling(void) {return Iter_Stop_NN_Scaling;} //JRH 07162018
+
+inline unsigned long CConfig::GetNumEpoch(void) {return Num_Epoch;} //JRH 04202018
+
+inline su2double CConfig::GetLearningRate(void) {return Learning_Rate;} //JRH 04172018
 
 inline su2double CConfig::GetdCL_dAlpha(void) { return dCL_dAlpha; }
 

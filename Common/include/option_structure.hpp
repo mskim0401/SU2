@@ -626,12 +626,57 @@ enum ENUM_TURB_MODEL {
   SA      = 1, /*!< \brief Kind of Turbulent model (Spalart-Allmaras). */
   SA_NEG  = 2, /*!< \brief Kind of Turbulent model (Spalart-Allmaras). */
   SST     = 3, /*!< \brief Kind of Turbulence model (Menter SST). */
+  SA_FIML = 4, /*!< \brief Kind of Turbulence model (Spalart-Allmaras Modified by Field Inversion and Machine Learning). */ //JRH 03292017 1056
 };
 static const map<string, ENUM_TURB_MODEL> Turb_Model_Map = CCreateMap<string, ENUM_TURB_MODEL>
 ("NONE", NO_TURB_MODEL)
 ("SA", SA)
 ("SA_NEG", SA_NEG)
-("SST", SST);
+("SST", SST)
+("SA_FIML", SA_FIML);//JRH: Added option above for new type of turbulence model, SA_FIML for SA "Field Inversion and Machine Learning" - 03292017 1053
+
+/*!
+ * \brief types of SA FIML Corrections
+ */
+enum ENUM_SA_FIML {
+  PRODUCTION = 0, /*!< \brief Apply beta to SA production term. */
+  KAPPA      = 1, /*!< \brief Apply beta to SA von Karman constant. */
+  APG		 = 2, /*!< \brief Apply beta to SA von Karman constant but only in denominator of r term similar to Shivaji Medida SA APG Correction. */
+  APGR       = 3, /*!< \brief Apply beta to SA von Karman constant but only in denominator of r term similar to Shivaji Medida SA APG Correction, and only if r < hard-coded value. */
+};
+static const map<string, ENUM_SA_FIML> SA_Fiml_Map = CCreateMap<string, ENUM_SA_FIML>
+("PRODUCTION", PRODUCTION)
+("KAPPA", KAPPA)
+("APG", APG)
+("APGR", APGR);
+
+enum ENUM_KIND_NN {//JRH 06282018
+	BACKPROP = 0, /*!< \brief Perform backpropagation algorithm to update weights, training beta is design variable. */
+  	WEIGHTS  = 1, /*!< \brief Neural Network weights are the design variable. */
+  };
+static const map<string, ENUM_KIND_NN> Kind_Train_NN_Map = CCreateMap<string, ENUM_KIND_NN>
+("BACKPROP", BACKPROP)
+("WEIGHTS", WEIGHTS);
+
+enum ENUM_KIND_NN_SCALE {
+  Z_SCALE = 0, /*!< \brief Apply Z Scaling (Unit Mean and Standard Deviation). */
+  MIN_MAX = 1, /*!< \brief Apply Min Max Scaling (range between 0 and 1. */
+  Q_TRANSFORM = 2, /*!< \brief Apply Q Transform (map to normal distribution) */
+  LOGIT = 3, /*!< \brief Apply Min/Max scaling and then apply logit function so minimize outliers. */
+  MAN_Z_SCALE = 4,
+  MAN_MIN_MAX = 5,
+  BOX_COX = 6,
+  NO_SCALE = 7,
+};
+static const map<string, ENUM_KIND_NN_SCALE> NN_Scale_Map = CCreateMap<string, ENUM_KIND_NN_SCALE>
+("Z_SCALE", Z_SCALE)
+("MIN_MAX", MIN_MAX)
+("Q_TRANSFORM", Q_TRANSFORM)
+("LOGIT", LOGIT)
+("MAN_Z_SCALE", MAN_Z_SCALE)
+("MAN_MIN_MAX", MAN_MIN_MAX)
+("BOX_COX", BOX_COX)
+("NO_SCALE", NO_SCALE);
 
 /*!
  * \brief types of transition models
@@ -954,7 +999,12 @@ enum ENUM_OBJECTIVE {
   OUTFLOW_GENERALIZED = 31,       /*!<\brief Objective function defined via chain rule on primitive variable gradients. */
   AERO_DRAG_COEFFICIENT = 35, 	  /*!< \brief Aero Drag objective function definition. */
   RADIAL_DISTORTION = 36, 	      /*!< \brief Radial Distortion objective function definition. */
-  CIRCUMFERENTIAL_DISTORTION = 37  /*!< \brief Circumferential Distortion objective function definition. */
+  CIRCUMFERENTIAL_DISTORTION = 37,  /*!< \brief Circumferential Distortion objective function definition. */
+  INVERSE_DESIGN_PRESSURE_FIML = 38, /*!< \brief Inverse pressure design with cost applied to fiml correction. */ // JRH 10112017
+  INVERSE_DESIGN_LIFT = 39, /*!< \brief Inverse design based on target lift coefficient. */ // JRH 10112017
+  INVERSE_DESIGN_LIFT_FIML = 40, /*!< \brief Inverse design based on target lift coefficient with cost applied to fiml correction. */ // JRH 10112017
+  INVERSE_DESIGN_DRAG = 41,  /*!< \brief Inverse design based on target drag coefficient. */ // JRH 10112017
+  INVERSE_DESIGN_DRAG_FIML = 42 /*!< \brief Inverse design based on target lift coefficient. */ // JRH 10112017
 };
 
 static const map<string, ENUM_OBJECTIVE> Objective_Map = CCreateMap<string, ENUM_OBJECTIVE>
@@ -990,7 +1040,15 @@ static const map<string, ENUM_OBJECTIVE> Objective_Map = CCreateMap<string, ENUM
 ("OUTFLOW_GENERALIZED", OUTFLOW_GENERALIZED)
 ("AERO_DRAG", AERO_DRAG_COEFFICIENT)
 ("RADIAL_DISTORTION", RADIAL_DISTORTION)
-("CIRCUMFERENTIAL_DISTORTION", CIRCUMFERENTIAL_DISTORTION);
+("CIRCUMFERENTIAL_DISTORTION", CIRCUMFERENTIAL_DISTORTION)
+("INVERSE_DESIGN_PRESSURE_FIML", INVERSE_DESIGN_PRESSURE_FIML)// JRH 10112017
+("INVERSE_DESIGN_LIFT",INVERSE_DESIGN_LIFT)// JRH 10112017
+("INVERSE_DESIGN_LIFT_FIML",INVERSE_DESIGN_LIFT_FIML)// JRH 10112017
+("INVERSE_DESIGN_DRAG",INVERSE_DESIGN_DRAG)// JRH 10112017
+("INVERSE_DESIGN_DRAG_FIML",INVERSE_DESIGN_DRAG_FIML);// JRH 10112017
+
+
+
 
 /*!
  * \brief types of residual criteria equations
@@ -1167,7 +1225,8 @@ enum ENUM_PARAM {
   CUSTOM = 24,               /*!< 'CUSTOM' for use in external python analysis. */
   NO_DEFORMATION = 25,		   /*!< \brief No Deformation. */
   ANGLE_OF_ATTACK = 101,	   /*!< \brief Angle of attack for airfoils. */
-  FFD_ANGLE_OF_ATTACK = 102	 /*!< \brief Angle of attack for FFD problem. */
+  FFD_ANGLE_OF_ATTACK = 102,	 /*!< \brief Angle of attack for FFD problem. */
+  FIML = 103				/*!< \brief FIML problem - DV at every point in grid - JRH 04122017. */
 };
 static const map<string, ENUM_PARAM> Param_Map = CCreateMap<string, ENUM_PARAM>
 ("FFD_SETTING", FFD_SETTING)
@@ -1197,7 +1256,8 @@ static const map<string, ENUM_PARAM> Param_Map = CCreateMap<string, ENUM_PARAM>
 ("SURFACE_FILE", SURFACE_FILE)
 ("CUSTOM", CUSTOM)
 ("NO_DEFORMATION", NO_DEFORMATION)
-("CST", CST);
+("CST", CST)
+("FIML", FIML); //JRH - 04122017
 
 
 /*!
@@ -2160,6 +2220,7 @@ public:
         case FFD_ANGLE_OF_ATTACK:  nParamDV = 2; break;
         case SURFACE_FILE:         nParamDV = 0; break;
         case CUSTOM:               nParamDV = 1; break;
+        case FIML:				   nParamDV = 1; break; //Initial value of field variable beta (typically 1.0) - JRH 04122017
         default : {
           string newstring;
           newstring.append(this->name);

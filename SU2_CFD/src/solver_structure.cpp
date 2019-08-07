@@ -2007,7 +2007,7 @@ CBaselineSolver::CBaselineSolver(CGeometry *geometry, CConfig *config, unsigned 
         /*--- First, remove any variables for the turbulence model that
          appear in the restart file before the grid velocities. ---*/
         
-        if (turb_model == SA || turb_model == SA_NEG) {
+        if (turb_model == SA || turb_model == SA_NEG || turb_model == SA_FIML) {
           point_line >> dull_val;
         } else if (turb_model == SST) {
           point_line >> dull_val >> dull_val;
@@ -2102,7 +2102,7 @@ void CBaselineSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
 
   GridVel_Index = 2*nDim;
 
-  if (config->GetKind_Turb_Model() == SA) { GridVel_Index += 1; }
+  if (config->GetKind_Turb_Model() == SA || config->GetKind_Turb_Model() == SA_FIML) { GridVel_Index += 1; }
   else if (config->GetKind_Turb_Model() == SST) { GridVel_Index += 2; }
   if (config->GetKind_Regime() != INCOMPRESSIBLE) { GridVel_Index += 1; }
   
@@ -2408,7 +2408,7 @@ void CBaselineSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConf
         /*--- First, remove any variables for the turbulence model that
          appear in the restart file before the grid velocities. ---*/
         
-        if (turb_model == SA || turb_model == SA_NEG) {
+        if (turb_model == SA || turb_model == SA_NEG || turb_model == SA_FIML) {
           point_line >> dull_val;
         } else if (turb_model == SST) {
           point_line >> dull_val >> dull_val;

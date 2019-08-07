@@ -176,6 +176,15 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
       
       if (Kind_Solver == RANS) {
         Tecplot_File << ", \"<greek>m</greek><sub>t</sub>\"";
+        if (config->GetKind_Turb_Model() == SA_FIML) {
+        	Tecplot_File << ", \"<greek>b</greek>\", \"Production\", \"Destruction\", \"S<sub>hat</sub>\", \"<greek>X</greek>\", \"<greek>d</greek>\", \"f<sub>w</sub>\", \"r\", \"Strain_Mag\", \"Vort_Mag\", \"wall_dist\", \"f<sub>d</sub>\"";
+        	if (config->GetKind_Trans_Model() == BC) {
+        		Tecplot_File << ", \"<greek>g</greek>\"";
+        	}
+        	if (config->GetTrainNN()) {
+        		Tecplot_File << ", \"<greek>b<sub>TRAIN</sub></greek>\"";
+        	}
+        }
       }
       
       if (config->GetWrt_SharpEdges()) {
@@ -202,6 +211,9 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         Tecplot_File << ", \"Surface_Sensitivity\", \"Sensitivity_x\", \"Sensitivity_y\"";
         if (geometry->GetnDim() == 3) {
           Tecplot_File << ",\"Sensitivity_z\"";
+        }
+        if (Kind_Solver == DISC_ADJ_RANS && config->GetKind_Turb_Model() == SA_FIML) {
+        	Tecplot_File << ", \"<greek>b</greek>\", \"<greek>Db</greek>\"";
         }
       }
       

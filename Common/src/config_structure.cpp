@@ -35,7 +35,7 @@
 
 
 CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_software, unsigned short val_iZone, unsigned short val_nZone, unsigned short val_nDim, unsigned short verb_level) {
-  
+  nDV_long = 0; //JRH 05172017
 #ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -43,23 +43,23 @@ CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_softwar
 #endif
 
   /*--- Initialize pointers to Null---*/
-
+  cout << "JRH Debugging: In CConfig Constructor, Calling SetPointersNull()" << endl;
   SetPointersNull();
 
   /*--- Reading config options  ---*/
-
+  cout << "JRH Debugging: In CConfig Constructor, Calling SetConfig_Options()" << endl;
   SetConfig_Options(val_iZone, val_nZone);
 
   /*--- Parsing the config file  ---*/
-
+  cout << "JRH Debugging: In CConfig Constructor, Calling SetConfig_Parsing()" << endl;
   SetConfig_Parsing(case_filename);
 
   /*--- Configuration file postprocessing ---*/
-
+  cout << "JRH Debugging: In CConfig Constructor, Calling SetPostprocessing()" << endl;
   SetPostprocessing(val_software, val_iZone, val_nDim);
 
   /*--- Configuration file boundaries/markers setting ---*/
-
+  cout << "JRH Debugging: In CConfig Constructor, Calling SetMarkers()" << endl;
   SetMarkers(val_software);
 
   /*--- Configuration file output ---*/
@@ -70,7 +70,7 @@ CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_softwar
 }
 
 CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_software) {
-
+  nDV_long = 0; //JRH 05172017
   /*--- Initialize pointers to Null---*/
 
   SetPointersNull();
@@ -90,7 +90,7 @@ CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_softwar
 }
 
 CConfig::CConfig(char case_filename[MAX_STRING_SIZE], CConfig *config) {
-
+  nDV_long = 0; //JRH 05172017
   bool runtime_file = false;
 
   /*--- Initialize pointers to Null---*/
@@ -125,61 +125,154 @@ void CConfig::SetMPICommunicator(SU2_Comm Communicator) {
 
 }
 
-unsigned short CConfig::GetnZone(string val_mesh_filename, unsigned short val_format, CConfig *config) {
-  string text_line, Marker_Tag;
-  ifstream mesh_file;
-  short nZone = 1; // Default value
-  unsigned short iLine, nLine = 10;
-  char cstr[200];
-  string::size_type position;
+	unsigned short CConfig::GetnZone(string val_mesh_filename, unsigned short val_format, CConfig *config) {
 
-  /*--- Search the mesh file for the 'NZONE' keyword. ---*/
+	  string text_line, Marker_Tag;
+	  ifstream mesh_file;
+	  short nZone = 1; // Default value
+	  unsigned short iLine, nLine = 10;
+	  char cstr[200];
+	  string::size_type position;
 
-  switch (val_format) {
-    case SU2:
+	  /*--- Search the mesh file for the 'NZONE' keyword. ---*/
 
-      /*--- Open grid file ---*/
+	  switch (val_format) {
+		case SU2:
 
-      strcpy (cstr, val_mesh_filename.c_str());
-      mesh_file.open(cstr, ios::in);
-      if (mesh_file.fail()) {
-        cout << "cstr=" << cstr << endl;
-        cout << "There is no geometry file (GetnZone))!" << endl;
+		  /*--- Open grid file ---*/
 
-#ifndef HAVE_MPI
-        exit(EXIT_FAILURE);
-#else
-        MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Abort(MPI_COMM_WORLD,1);
-        MPI_Finalize();
-#endif
-      }
+		  strcpy (cstr, val_mesh_filename.c_str());
+		  mesh_file.open(cstr, ios::in);
+		  if (mesh_file.fail()) {
+			cout << "cstr=" << cstr << endl;
+			cout << "There is no geometry file (GetnZone))!" << endl;
 
-      /*--- Read the SU2 mesh file ---*/
+		#ifndef HAVE_MPI
+				exit(EXIT_FAILURE);
+		#else
+				MPI_Barrier(MPI_COMM_WORLD);
+				MPI_Abort(MPI_COMM_WORLD,1);
+				MPI_Finalize();
+		#endif
+		  }
 
-      for (iLine = 0; iLine < nLine ; iLine++) {
+		  /*--- Read the SU2 mesh file ---*/
 
-        getline (mesh_file, text_line);
+		  for (iLine = 0; iLine < nLine ; iLine++) {
 
-        /*--- Search for the "NZONE" keyword to see if there are multiple Zones ---*/
+			getline (mesh_file, text_line);
 
-        position = text_line.find ("NZONE=",0);
-        if (position != string::npos) {
-          text_line.erase (0,6); nZone = atoi(text_line.c_str());
+			/*--- Search for the "NZONE" keyword to see if there are multiple Zones ---*/
+
+			position = text_line.find ("NZONE=",0);
+			if (position != string::npos) {
+			  text_line.erase (0,6); nZone = atoi(text_line.c_str());
+			}
+		  }
+
+		  break;
+
+	  }
+
+	  /*--- For harmonic balance integration, nZones = nTimeInstances. ---*/
+
+	  if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE && (config->GetKind_SU2() != SU2_DEF)   ) {
+		nZone = config->GetnTimeInstances();
+	  }
+
+	  return (unsigned short) nZone;
+ }
+
+  unsigned short CConfig::GetnElem(string val_mesh_filename, unsigned short val_format) {
+    /* --- JRH - Function to return number of nodes? in the SU2 mesh definition. Required to set # of DVs for FIML case --- */
+	string text_line, Marker_Tag;
+    ifstream mesh_file;
+    //short nZone = 1; // Default value
+    short nElem = 1; // Default value
+    unsigned short iLine, nLine = 10;
+    char cstr[200];
+    string::size_type position;
+
+    /*--- Search the mesh file for the 'NELEM' keyword. ---*/
+
+    switch (val_format) {
+      case SU2:
+
+        /*--- Open grid file ---*/
+
+        strcpy (cstr, val_mesh_filename.c_str());
+        mesh_file.open(cstr, ios::in);
+        if (mesh_file.fail()) {
+          cout << "cstr=" << cstr << endl;
+          cout << "There is no geometry file (GetnElem))!" << endl;
         }
-      }
 
-      break;
+        /*--- Read the SU2 mesh file ---*/
 
-  }
+        for (iLine = 0; iLine < nLine ; iLine++) {
 
-  /*--- For harmonic balance integration, nZones = nTimeInstances. ---*/
+          getline (mesh_file, text_line);
 
-  if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE && (config->GetKind_SU2() != SU2_DEF)   ) {
-  	nZone = config->GetnTimeInstances();
-  }
+          /*--- JRH - Search for the "ELEM" keyword to see if there are multiple Zones ---*/
 
-  return (unsigned short) nZone;
+          position = text_line.find ("NELEM=",0); //JRH 04102017
+          if (position != string::npos) {
+            text_line.erase (0,6); nElem = atoi(text_line.c_str());
+          }
+        }
+
+        break;
+      case CGNS:
+    	  cout << "ERROR - JRH - CGNS Lookup of NELEM= not implemented yet in Configuration yet!!" << endl;
+    	  break;
+    }
+    return (unsigned short) nElem;
+}
+
+unsigned long CConfig::GetnPoin(string val_mesh_filename, unsigned short val_format) {
+    /* --- JRH - Function to return number of nodes? in the SU2 mesh definition. Required to set # of DVs for FIML case --- */
+	string text_line, Marker_Tag;
+    ifstream mesh_file;
+    //short nZone = 1; // Default value
+    unsigned long nPoin = 1; // Default value
+    unsigned short iLine, nLine = 10;
+    char cstr[200];
+    string::size_type position;
+
+    /*--- Search the mesh file for the 'NELEM' keyword. ---*/
+
+    switch (val_format) {
+      case SU2:
+
+        /*--- Open grid file ---*/
+
+        strcpy (cstr, val_mesh_filename.c_str());
+        mesh_file.open(cstr, ios::in);
+        if (mesh_file.fail()) {
+          cout << "cstr=" << cstr << endl;
+          cout << "There is no geometry file (GetnPoin))!" << endl;
+        }
+
+        /*--- Read the SU2 mesh file ---*/
+
+        //for (iLine = 0; iLine < nLine ; iLine++) {
+        while (nPoin == 1) {
+          getline (mesh_file, text_line);
+
+          /*--- JRH - Search for the "NPOIN" keyword to see if there are multiple Zones ---*/
+
+          position = text_line.find ("NPOIN=",0); //JRH 04102017
+          if (position != string::npos) {
+            text_line.erase (0,6); nPoin = atol(text_line.c_str());
+          }
+        }
+
+        break;
+      case CGNS:
+    	  cout << "ERROR - JRH - CGNS Lookup of NPOIN= not implemented yet in Configuration yet!!" << endl;
+    	  break;
+    }
+    return (unsigned long) nPoin;
 }
 
 unsigned short CConfig::GetnDim(string val_mesh_filename, unsigned short val_format) {
@@ -501,6 +594,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   
   nZone = val_nZone;
   iZone = val_iZone;
+  unsigned long NPOIN; //JRH 07042017
 
   /*--- Allocate some default arrays needed for lists of doubles. ---*/
   
@@ -539,10 +633,13 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addMathProblemOption("MATH_PROBLEM", ContinuousAdjoint, false, DiscreteAdjoint, false, Restart_Flow, false);
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
-
+  addEnumOption("KIND_SA_FIML", Kind_SA_Fiml, SA_Fiml_Map, PRODUCTION);
+  addEnumOption("KIND_NN_SCALING", Kind_NN_Scaling, NN_Scale_Map, Z_SCALE);
   /*!\brief KIND_TRANS_MODEL \n DESCRIPTION: Specify transition model OPTIONS: see \link Trans_Model_Map \endlink \n DEFAULT: NO_TRANS_MODEL \ingroup Config*/
   addEnumOption("KIND_TRANS_MODEL", Kind_Trans_Model, Trans_Model_Map, NO_TRANS_MODEL);
-
+  addBoolOption("SALSA", salsa, false);
+  addBoolOption("L2_REG", l2_reg, false); //If KIND_TRAIN_NN= WEIGHTS, do L2 Regularization on OF. Uses lambda_fiml for now, can't do both regs at once JRH 08022019
+  addBoolOption("INVERSE_CP_AVERAGE", Cp_avg, false);
   /*\brief AXISYMMETRIC \n DESCRIPTION: Axisymmetric simulation \n DEFAULT: false \ingroup Config */
   addBoolOption("AXISYMMETRIC", Axisymmetric, false);
   /* DESCRIPTION: Add the gravity force */
@@ -1379,6 +1476,27 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("OPT_BOUND_UPPER", DVBound_Upper, 1E6);
   /* DESCRIPTION: Setup for design variables (lower bound) */
   addDoubleOption("OPT_BOUND_LOWER", DVBound_Lower, -1E6);
+  /* DESCRIPTION: Target Lift Coefficient for INVERSE_DESIGN_LIFT problems */
+  addDoubleOption("TARGET_INVERSE_CL",Target_Inverse_CL, 0.0); //DIFFERENT THAN Target_CL (which is for fixed CL mode) //JRH 10112017
+  /* DESCRIPTION: Target Drag Coefficient for INVERSE_DESIGN_DRAG problems */
+  addDoubleOption("TARGET_INVERSE_CD",Target_Inverse_CD, 0.0); //JRH 10112017
+  /* DESCRIPTION: Lambda weight factor for FIML problems */
+  addDoubleOption("LAMBDA_FIML",Lambda_FIML, 0.0); //Larger lambda penalizes corrections away from 1.0 - JRH 10112017
+  addDoubleOption("LAMBDA_GRID_FIML",Lambda_Grid_FIML, 0.0); //Larger lambda penalizes grid corrections away from 1.0 - JRH 04062018
+  addDoubleOption("LAMBDA_LOSS_FIML",Lambda_Loss_FIML, 0.0); //Larger lambda penalizes NNs with high losses - JRH 05082018
+  addDoubleOption("PERCENT_HOLDOUT",Percent_Holdout, 0.0); //Percent of training data to hold out from NN Training - JRH 05082018
+  addUnsignedShortOption("N_BINS", nBins, 5);
+  //JRH - 04172018 - Options for Neural Network Training in Inversion
+  addBoolOption("TRAIN_NN",Train_NN, false);
+  addBoolOption("FILTER_SHIELD",Filter_Shield, false);
+  //addEnumOption("KIND_NN_SCALING", Kind_NN_Scaling, NN_Scale_Map, Z_SCALE);
+  addEnumOption("KIND_TRAIN_NN", Kind_Train_NN, Kind_Train_NN_Map, BACKPROP);
+  addUnsignedShortOption("N_HIDDEN_LAYERS",N_Hidden_Layers,2);
+  addUnsignedLongOption("N_NEURONS",N_Neurons,10);
+  addDoubleOption("LEARNING_RATE",Learning_Rate,0.001);
+  addUnsignedLongOption("ITER_START_NN",Iter_Start_NN,100);
+  addUnsignedLongOption("ITER_STOP_NN_SCALING", Iter_Stop_NN_Scaling, 0); //JRH 07162018 - Iteration to stop rescaling inputs (defaults to 0 = never)
+  addUnsignedLongOption("NUM_EPOCH",Num_Epoch,1);
 
   /*!\par CONFIG_CATEGORY: Wind Gust \ingroup Config*/
   /*--- Options related to wind gust simulations ---*/
@@ -1747,11 +1865,31 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Flag specifying if the mesh was decomposed */
   addPythonOption("DECOMPOSED");
 
+  /* DESCRIPTION: JRH - Required for FIML Python Scripting */
+  addPythonOption("NPOIN");
+
+  /* DESCRIPTION: JRH - Required for FIML Python Scripting */
+  addPythonOption("MIN_MAX_GRAD");
+
+  /* DESCRIPTION: JRH - For multiple configurations for FIML NN Weights Training */
+  addPythonOption("NUM_CASES");
+
+  /* DESCRIPTION: JRH - For multiple configurations for FIML NN Weights Training */
+  addPythonOption("LEARN_RATE");
+
+  /* DESCRIPTION: JRH - For multiple configurations for FIML NN Weights Training indicates number of current configuration */
+  addUnsignedShortOption("CONFIG_I",config_num,0);
+
+  /* DESCRIPTION: JRH - For multiple configurations for FIML NN Weights Training */
+  addPythonOption("STOCHASTIC_GRAD");
+  /* DESCRIPTION: JRH - For multiple Meshes for FIML NN Weights Training */
+  addBoolOption("MULTI_MESH",multi_mesh,false);
+
   /* DESCRIPTION: Activate ParMETIS mode for testing */
   addBoolOption("PARMETIS", ParMETIS, false);
   
   /* END_CONFIG_OPTIONS */
-
+  nDV_long = (unsigned long) nDV; //JRH 05132017 - Set nDV_long to nDV so it can be called by GetnDV(). nDV_long may be reset to very large value if FIML
 }
 
 void CConfig::SetConfig_Parsing(char case_filename[MAX_STRING_SIZE]) {
@@ -1944,11 +2082,15 @@ bool CConfig::SetRunTime_Parsing(char case_filename[MAX_STRING_SIZE]) {
 }
 
 void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_izone, unsigned short val_nDim) {
-  
+  cout << "JRH Debugging: In CConfig::SetPostprocessing" << endl;
   unsigned short iZone, iCFL, iMarker;
+  unsigned long nDV_Temp;
   bool ideal_gas       = (Kind_FluidModel == STANDARD_AIR || Kind_FluidModel == IDEAL_GAS );
   bool standard_air       = (Kind_FluidModel == STANDARD_AIR);
   
+  //unsigned short *Design_Variable_Temp; //JRH
+  //su2double **DV_Value_Temp; //JRH
+
 #ifdef HAVE_MPI
   int size = SINGLE_NODE;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -2065,12 +2207,195 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
   Nonphys_Reconstr = 0;
   
   /*--- Apply a bound to the deformation if there is any design variable ---*/
-  
+  //cout << "JRH Debugging: In CConfig::SetPostprocessing - Starting to work on DVs" << endl;
+  //cout << "JRH Debugging: Before adjusting FIML vars - nDV = " << nDV << endl;
+  bool fiml = false;
   if (Design_Variable != NULL) {
-    for (unsigned short iDV = 0; iDV < nDV; iDV++) {
-      if (DV_Value != NULL)
+    for (unsigned long iDV = 0; iDV < nDV; iDV++) {
+      if (DV_Value != NULL) {
         DV_Value[iDV][0] = max(min(DV_Value[iDV][0], DVBound_Upper), DVBound_Lower);
+  /* --- JRH - Augment the Number of Design Variables with a FIML Variable at Each Element (node?) 04122017 --- */
+		  if (Design_Variable[iDV] == FIML) {
+			  fiml = true;
+
+			 // cout << "Appending Design Variables With FIML Correction at Each Node. - JRH" << endl;
+			  if (Kind_Train_NN == BACKPROP || Train_NN == false) {
+				  nDV_Temp = GetnPoin(Mesh_FileName, Mesh_FileFormat);
+				  cout << "JRH Debugging: nDV_Temp Set To " << nDV_Temp << " After Reading Mesh File for NPOIN" << endl;
+			  }
+			  else if (Kind_Train_NN == WEIGHTS) {
+				  unsigned short num_nn_inputs = 4; //Hard-coded number of neural network inputs
+				  unsigned short nLayers = N_Hidden_Layers+2;//0 - Input Layer, 2<->nLayers-2 - Hidden Layers, nLayer-1 - Output Layer
+				  unsigned short nNeurons = N_Neurons;
+
+				  //initialize num_nodes[]
+				  unsigned long * num_nodes;
+				  num_nodes = new unsigned long [nLayers];
+				  num_nodes[0] = num_nn_inputs+1; //+1 if using bias nodes
+				  num_nodes[nLayers-1] = 1;
+				  for(unsigned short iLayer = 1; iLayer < nLayers-1; iLayer++) num_nodes[iLayer] = nNeurons;
+
+				  //initialize num_inputs[]
+				  unsigned long * num_inputs;
+				  num_inputs = new unsigned long [nLayers];
+				  num_inputs[0] = num_nn_inputs+1; //+1 if using bias nodes
+				  for (unsigned short iLayer = 1; iLayer<nLayers;iLayer++) num_inputs[iLayer] = nNeurons;
+
+				  unsigned long num_weights = 0;
+				  for (unsigned short iLayer = 1; iLayer < nLayers; iLayer++) {  //JRH 09232018 - Removing input layer weights from costly computation
+					  for (unsigned short iNode = 0; iNode < num_nodes[iLayer]; iNode++) {
+						  for (unsigned long iInput = 0; iInput < num_inputs[iLayer-1]; iInput++) {
+								  num_weights++;
+						  }
+					  }
+				  }
+				  nDV_Temp = num_weights;
+				  cout << "JRH Debugging: nDV_Temp Set To " << nDV_Temp << " = Number of Weights in Neural Network" << endl;
+				  delete [] num_inputs;
+				  delete [] num_nodes;
+			  } // <<<<< if Kind_Train_NN == WEIGHTS
+
+			  //JRH - Allocate temporary variables to copy into - 04142017
+			  unsigned short* Design_Variable_Temp = new unsigned short [nDV_Temp+1];
+			  unsigned short* nDV_Value_Temp = new unsigned short [nDV_Temp+1];
+			  su2double** DV_Value_Temp = new su2double * [nDV_Temp+1];
+			  su2double** ParamDV_Temp = new su2double * [nDV_Temp+1];
+
+			  //cout << "Copying Over Any Existing Values " << endl;
+			  //cout << "nDV_Temp=" << nDV_Temp << endl;
+			  for (unsigned long count = 0; count <= iDV ; count++) {
+				  Design_Variable_Temp[count] = Design_Variable[count];
+				  nDV_Value_Temp[count] = nDV_Value[count];
+				  ParamDV_Temp[count] = new su2double[nParamDV];
+				 // cout << "JRH Debugging: Starting ParamDV_Temp Loop" << endl;
+				  nParamDV = 1; //JRH - Required for AD code, nParamDV does not get set prior to this. - 04192017
+				 // cout << "JRH Debugging: nParamDV = " << nParamDV << endl;
+				  for (unsigned short iDV_Param = 0; iDV_Param < nParamDV; iDV_Param++){
+				//	  cout << "JRH Debugging: count = " << count << "   iDV_Param = " << iDV_Param << endl;
+					  ParamDV_Temp[count][iDV_Param] = ParamDV[count][iDV_Param];
+				//	  cout << "JHR Debugging: Done with this ParamDV element" << endl;
+				  }
+				  DV_Value_Temp[count] = new su2double[nDV_Value[count]];
+				  //cout << "JRH Debugging: Starting ParamDV_Temp Loop" << endl;
+				  for (unsigned long iDV_Value = 0; iDV_Value < nDV_Value[count];iDV_Value++){
+					   //Allocate second dimension of array
+					  //cout << "JRH Debug - Here 1 " << count << endl;
+					  DV_Value_Temp[count][iDV_Value] = DV_Value[count][iDV_Value];
+					  //cout << "JRH Debug - Here 2 " << count << endl;
+					  //cout << "JRH Debug - count " << count << " iDV_Value " << iDV_Value << " DV_Value[count][iDV_Value] " << DV_Value[count][iDV_Value] << endl;
+					  //cout << "DV_Value[count][iDV_Value] = " << DV_Value[count][iDV_Value] << " and DV_Value_Temp[count][iDV_Value] = " << DV_Value_Temp[count][iDV_Value] << endl;
+				  }
+			//	  cout << "JRH Debugging Message: Copying over DV # " << count << endl;
+			  }
+			 // cout << "JRH Debugging - Done with copy..." << endl;
+
+			  //Allocate rest of temp array - JRH
+			  //cout << "Allocating DV_Value_Temp to nDV_Temp and ParamDV_Temp to ParamDV= " << nDV_Temp << endl;
+			  for (unsigned long count = iDV+1; count < nDV_Temp; count++) {
+				  DV_Value_Temp[count] = new su2double[nDV_Value[iDV]]; //Allocate second dimension of array
+				  ParamDV_Temp[count] = new su2double[nParamDV];
+			  }
+
+			 // cout << "JRH Debugging - Done Allocating Rest of DV_Value_Temp" << endl;
+
+			  //Delete old vector/array - JRH
+			  delete[] Design_Variable;
+			  delete[] nDV_Value;
+
+			  //delete[] DV_Value;
+			  cout << "Starting to delete DV_Value" << endl;
+			  for (unsigned long count = 0; count < nDV; count++) {
+				  delete[] DV_Value[count];
+				  delete[] ParamDV[count];
+			  }
+			  delete[] DV_Value;
+			  delete[] ParamDV;
+
+			 // cout << "Done deleting ParamDV" << endl;
+
+			  //Assign values back to vector/array
+
+			  //Design_Variable = Design_Variable_Temp;
+			  //DV_Value = DV_Value_Temp;
+			  //ParamDV = ParamDV_Temp;
+			  //nDV_Value = nDV_Value_Temp;
+			//  cout << "JRH Debugging: Resizing DV_Value, ParamDV, Design_Variable, and nDV_Value" << endl;
+			  DV_Value = new su2double * [nDV_Temp+1];
+			  ParamDV = new su2double * [nDV_Temp+1];
+			  Design_Variable = new unsigned short [nDV_Temp+1];
+			  nDV_Value = new unsigned short [nDV_Temp+1];
+			 // cout << "JRH Debugging: Transferring Data From _Temp DV Arrays" << endl;
+			  for (unsigned long count = 0; count < nDV_Temp; count++) {
+				  Design_Variable[count] = Design_Variable_Temp[count];
+				  nDV_Value[count] = nDV_Value_Temp[count];
+				  //DV_Value[count] = DV_Value_Temp[count];
+				  nDV_Value[count] = nDV_Value_Temp[count];
+				  //ParamDV[count] = ParamDV_Temp[count];
+
+				  for (unsigned long iDV_Value = 0; iDV_Value < nDV_Value[iDV]; iDV_Value++) {
+					  DV_Value[count] = new su2double [nDV_Value[iDV]];
+					  DV_Value[count][iDV_Value] = DV_Value_Temp[count][iDV_Value];
+				  }
+				  for (unsigned long iDV_Param = 0; iDV_Param < nParamDV; iDV_Param++) {
+					  ParamDV[count] = new su2double [nParamDV];
+					  ParamDV[count][iDV_Param] = ParamDV_Temp[count][iDV_Param];
+				  }
+			  }
+
+			//  cout << "Starting to delete _Temp vars" << endl;
+			  //Delete the temp vars and arrays to prevent a memory leak - JRH
+			  for (unsigned long count = 0; count < nDV_Temp; count++) delete [] DV_Value_Temp[count];
+			  for (unsigned long count = 0; count < nDV_Temp; count++) delete [] ParamDV_Temp[count];
+			  delete [] Design_Variable_Temp;
+			  delete [] DV_Value_Temp;
+			  delete [] nDV_Value_Temp;
+			  delete [] ParamDV_Temp; //JRH 20171219
+			 // cout << "Done deleting _Temp vars" << endl;
+
+			  nDV_long = nDV_Temp;
+
+			  //delete nDV_Temp;
+
+			  //Initialize the new design variables
+			//  cout << "After FIML New Number of Design Variables (total) is nDV_long = " << nDV_long << endl;
+			  for (unsigned long count = iDV+1; count < nDV_long; count++) {
+				  //cout << "JRH Debugging Message: Appending Design Variable " << count << endl;
+				  Design_Variable[count] = FIML;
+				  //cout << "Design_Variable = " << Design_Variable[count] << endl;
+				  //DV_Value[count][0] = max(min(DV_Value[iDV][0], DVBound_Upper), DVBound_Lower);
+				  DV_Value[count][0] = DV_Value[iDV][0];
+				  //cout << "JRH Debugging Message: Value of DV " << count << " = " << DV_Value[count][0] << endl;
+				  ParamDV[count][0] = ParamDV[iDV][0];
+				  //cout << "JRH Debugging Message: Param of DV " << count << " = " << ParamDV[count][0] << endl;
+				  nDV_Value[count] = nDV_Value[iDV];
+			  }
+			//  cout << "WARNING: Any DVs After FIML DV Have Been Ignored" << endl;
+			  iDV = nDV;
+		  }
+      }
     }
+    if (fiml) {
+    	cout << "JRH Debugging: Setting beta_fiml from file" << endl;
+    	ifstream beta_file;
+    	string filename = "beta_fiml.dat";
+    	string text_line;
+        /*--- Open the beta_fiml file, throw an error if this fails. ---*/
+
+        beta_file.open(filename.data(), ios::in);
+        if (beta_file.fail()) {
+          if (rank == MASTER_NODE)
+            cout << "There is no beta_fiml file!! " << filename.data() << "."<< endl;
+          exit(EXIT_FAILURE);
+        }
+        for (unsigned long iDV_long = 0; iDV_long < nDV_long; iDV_long++ ) {
+            getline (beta_file, text_line);
+            istringstream point_line(text_line);
+            point_line >> DV_Value[iDV_long][0];
+            //cout << "JRH Debugging: iDV # " << iDV_long << " = " << DV_Value[iDV_long][0] << " from beta_fiml.dat" << endl;
+        }
+
+    }
+
   }
   
   if (Kind_Solver == POISSON_EQUATION) {
@@ -3095,7 +3420,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
     SpatialOrder_AdjFlow = SECOND_ORDER;
   
   delete [] tmp_smooth;
-  
+  cout << "JRH Debugging: Leaving Config::SetPostprocessing()" << endl;
 }
 
 void CConfig::SetMarkers(unsigned short val_software) {
@@ -3684,6 +4009,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case SA:     cout << "Spalart Allmaras" << endl; break;
           case SA_NEG: cout << "Negative Spalart Allmaras" << endl; break;
           case SST:    cout << "Menter's SST"     << endl; break;
+          case SA_FIML: cout << "Spalart Allmaras FIML Augmented"	<< endl; break; //JRH - Added output for SA FIML model - 03272017 1108
         }
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;
@@ -3714,7 +4040,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
         break;
 
     }
-
+    if (salsa) cout << "JRH: Using Spalart Allmaras SALSA Correction" << endl;
     if ((Kind_Regime == COMPRESSIBLE) && (Kind_Solver != FEM_ELASTICITY) &&
         (Kind_Solver != HEAT_EQUATION) && (Kind_Solver != WAVE_EQUATION)) {
       cout << "Mach number: " << Mach <<"."<< endl;
@@ -3907,7 +4233,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
 
   if (((val_software == SU2_DEF) || (val_software == SU2_DOT)) && (Design_Variable[0] != NONE)) {
 
-    for (unsigned short iDV = 0; iDV < nDV; iDV++) {
+    for (unsigned long iDV = 0; iDV < nDV; iDV++) {
 
       
       if ((Design_Variable[iDV] != NO_DEFORMATION) &&
@@ -3942,19 +4268,21 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case FFD_THICKNESS:         cout << "FFD (thickness) <-> "; break;
           case FFD_ANGLE_OF_ATTACK:   cout << "FFD (angle of attack) <-> "; break;
           case CUSTOM:                cout << "Custom DV <-> "; break;
-        }
-        
-        for (iMarker_DV = 0; iMarker_DV < nMarker_DV; iMarker_DV++) {
-          cout << Marker_DV[iMarker_DV];
-          if (iMarker_DV < nMarker_DV-1) cout << ", ";
-          else cout << " <-> ";
+          case FIML:				  cout << "Field Inversion and Machine Learning Correction (Currently Requires SA_FIML) <-> "; break; //JRH - 04122017
         }
 
-        for (iDV_Value = 0; iDV_Value < nDV_Value[iDV]; iDV_Value++) {
-          cout << DV_Value[iDV][iDV_Value];
-          if (iDV_Value != nDV_Value[iDV]-1) cout << ", ";
-        }
-        cout << " <-> ";
+			for (iMarker_DV = 0; iMarker_DV < nMarker_DV; iMarker_DV++) {
+			  cout << Marker_DV[iMarker_DV];
+			  if (iMarker_DV < nMarker_DV-1) cout << ", ";
+			  else cout << " <-> ";
+			}
+
+			for (iDV_Value = 0; iDV_Value < nDV_Value[iDV]; iDV_Value++) {
+			  cout << DV_Value[iDV][iDV_Value];
+			  if (iDV_Value != nDV_Value[iDV]-1) cout << ", ";
+			}
+			cout << " <-> ";
+        
 
         if ((Design_Variable[iDV] == NO_DEFORMATION) ||
             (Design_Variable[iDV] == FFD_SETTING) ||
@@ -3981,7 +4309,9 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
             (Design_Variable[iDV] ==  FFD_CONTROL_SURFACE) ) nParamDV = 7;
         if (Design_Variable[iDV] ==  CUSTOM) nParamDV = 1;
         if (Design_Variable[iDV] == FFD_TWIST) nParamDV = 8;
+        if (Design_Variable[iDV] == FIML) nParamDV = 1; //JRH - 04122017
 
+        if (Design_Variable[iDV] != FIML) { //JRH - Don't need markers for FIML so avoid this block... 04/17/2017
         for (unsigned short iParamDV = 0; iParamDV < nParamDV; iParamDV++) {
 
           if (iParamDV == 0) cout << "( ";
@@ -4035,9 +4365,10 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
             if (iCoordFFD < 23) cout << ", ";
             else cout <<" )"<< endl;
           }
+
           
         }
-        
+      }
       }
       
       else cout << endl;
@@ -4080,6 +4411,11 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
         case AERO_DRAG_COEFFICIENT:   cout << "Aero CD objective function." << endl; break;
         case RADIAL_DISTORTION:       cout << "Radial distortion objective function." << endl; break;
         case CIRCUMFERENTIAL_DISTORTION:   cout << "Circumferential distortion objective function." << endl; break;
+        case INVERSE_DESIGN_PRESSURE_FIML: cout << "Inverse Design Pressure with Weight Factor on Correction (DISCRETE ADJOINT ONLY!!)." << endl; break; //JRH 10112017
+        case INVERSE_DESIGN_LIFT:  cout << "Inverse Design for Lift Coefficient (DISCRETE ADJOINT ONLY!!)." << endl; break; //JRH 10112017
+        case INVERSE_DESIGN_LIFT_FIML:  cout << "Inverse Design for Lift Coefficient with Weight Factor on Correction (DISCRETE ADJOINT ONLY!!)." << endl; break; //JRH 10112017
+        case INVERSE_DESIGN_DRAG: cout << "Inverse Design for Drag Coefficient (DISCRETE ADJOINT ONLY!!)." << endl; break; //JRH 10112017
+        case INVERSE_DESIGN_DRAG_FIML: cout << "Inverse Design for Drag Coefficient with Weight Factor on Correction (DISCRETE ADJOINT ONLY!!)." << endl; break; //JRH 10112017
 
       }
 		}
@@ -5291,16 +5627,21 @@ CConfig::~CConfig(void) {
   if (Kind_ObjFunc != NULL)      delete[] Kind_ObjFunc;
   if (Weight_ObjFunc != NULL)      delete[] Weight_ObjFunc;
 
+  //cout << "JRH Debugging: Beginning to delete DV_Value" << endl;
   if (DV_Value != NULL) {
-    for (iDV = 0; iDV < nDV; iDV++) delete[] DV_Value[iDV];
+    for (iDV = 0; iDV < nDV_long; iDV++) delete[] DV_Value[iDV];
     delete [] DV_Value;
   }
   
+  //cout << "JRH Debugging: Beginning to delete ParamDV" << endl;
   if (ParamDV != NULL) {
-    for (iDV = 0; iDV < nDV; iDV++) delete[] ParamDV[iDV];
+    for (iDV = 0; iDV < nDV_long; iDV++) {
+    	//cout << "Deleting ParamDV: " << iDV << endl;
+    	delete[] ParamDV[iDV];
+    }
     delete [] ParamDV;
   }
-  
+  //cout << "JRH Debugging: Done deleting ParamDV" << endl;
   if (CoordFFDBox != NULL) {
     for (iFFD = 0; iFFD < nFFDBox; iFFD++) delete[] CoordFFDBox[iFFD];
     delete [] CoordFFDBox;
@@ -5311,6 +5652,7 @@ CConfig::~CConfig(void) {
     delete [] DegreeFFDBox;
   }
   
+  //cout << "JRH Debugging: Deleting Design_Variable" << endl;
   if (Design_Variable != NULL)    delete[] Design_Variable;
   if (Dirichlet_Value != NULL)    delete[] Dirichlet_Value;
   
@@ -5510,6 +5852,7 @@ CConfig::~CConfig(void) {
   if (default_htp_axis      != NULL) delete [] default_htp_axis;
 
   if (FFDTag != NULL) delete [] FFDTag;
+  //cout << "JRH Debugging: Deleting nDV_Value" << endl;
   if (nDV_Value != NULL) delete [] nDV_Value;
   if (TagFFDBox != NULL) delete [] TagFFDBox;
   
@@ -5605,9 +5948,14 @@ string CConfig::GetObjFunc_Extension(string val_filename) {
       case AVG_OUTLET_PRESSURE:     AdjExt = "_pe";       break;
       case MASS_FLOW_RATE:          AdjExt = "_mfr";      break;
       case OUTFLOW_GENERALIZED:     AdjExt = "_chn";      break;
-      case AERO_DRAG_COEFFICIENT:   AdjExt = "_acd";       break;
-      case RADIAL_DISTORTION:           AdjExt = "_rdis";      break;
-      case CIRCUMFERENTIAL_DISTORTION:  AdjExt = "_cdis";      break;
+      case AERO_DRAG_COEFFICIENT:   AdjExt = "_acd";      break;
+      case RADIAL_DISTORTION:           AdjExt = "_rdis"; break;
+      case CIRCUMFERENTIAL_DISTORTION:  AdjExt = "_cdis"; break;
+      case INVERSE_DESIGN_PRESSURE_FIML: AdjExt = "_invpressfiml"; break;
+      case INVERSE_DESIGN_LIFT:  AdjExt = "_invcl";       break;
+      case INVERSE_DESIGN_LIFT_FIML: AdjExt = "_invcclfiml";       break;
+      case INVERSE_DESIGN_DRAG: AdjExt = "_invcd";        break;
+      case INVERSE_DESIGN_DRAG_FIML: AdjExt = "_invcdfiml";        break;
       }
     }
     else{

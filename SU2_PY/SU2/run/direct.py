@@ -117,6 +117,9 @@ def direct ( config ):
         info.FILES.TARGET_CP = 'TargetCp.dat'
     if 'INV_DESIGN_HEATFLUX' in special_cases:
         info.FILES.TARGET_HEATFLUX = 'TargetHeatFlux.dat'
+    if 'TRAIN_NN' in special_cases:
+        info.FILES.TRAIN_NN = 'nn_weights.dat' 
+        
     info.HISTORY.DIRECT = history
     
     return info

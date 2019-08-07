@@ -31,6 +31,7 @@
 
 #include "../include/SU2_DOT.hpp"
 using namespace std;
+su2double *beta_fiml_grad;
 
 int main(int argc, char *argv[]) {
   
@@ -41,7 +42,6 @@ int main(int argc, char *argv[]) {
   ofstream Gradient_file;
   int rank = MASTER_NODE;
   int size = SINGLE_NODE;
-  
   /*--- MPI initialization, and buffer setting ---*/
   
 #ifdef HAVE_MPI
@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
   CGeometry **geometry_container      = NULL;
   CSurfaceMovement *surface_movement  = NULL;
   CVolumetricMovement *mesh_movement  = NULL;
+  //CSolver **solver_container		  = NULL; //JRH 06202017
   
   /*--- Load in the number of zones and spatial dimensions in the mesh file (if no config
    file is specified, default.cfg is used) ---*/
@@ -70,10 +71,12 @@ int main(int argc, char *argv[]) {
   
   config_container = new CConfig*[nZone];
   geometry_container = new CGeometry*[nZone];
+  //solver_container = new CSolver*[nZone]; //JRH 06202017
   
   for (iZone = 0; iZone < nZone; iZone++) {
     config_container[iZone]       = NULL;
     geometry_container[iZone]     = NULL;
+    //solver_container[iZone]		  = NULL; //JRH 06202017
   }
   
   /*--- Loop over all zones to initialize the various classes. In most
@@ -259,7 +262,7 @@ void SetProjection_FD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
 #ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 #endif
-  
+  cout << "JRH Debugging: In SetProjection_FD" << endl;
   nDV = config->GetnDV();
   
   /*--- Boolean controlling points to be updated ---*/
@@ -277,7 +280,7 @@ void SetProjection_FD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
   
   for (iDV = 0; iDV  < nDV; iDV++){
     nDV_Value = config->GetnDV_Value(iDV);
-    if (nDV_Value != 1){
+    if (nDV_Value != 1 && config->GetDesign_Variable(0) != FIML){
       cout << "The projection using finite differences currently only supports a fixed direction of movement for FFD points." << endl;
       exit(EXIT_FAILURE);
     }
@@ -498,7 +501,7 @@ void SetProjection_FD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
         }
         
       }
-      
+      //else if (config->GetDesign_Variable(iDV)==FIML) my_Gradient =
 #ifdef HAVE_MPI
       SU2_MPI::Allreduce(&my_Gradient, &Gradient[iDV][0], 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #else
@@ -525,8 +528,9 @@ void SetProjection_FD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
 void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *surface_movement, ofstream& Gradient_file){
   
   su2double DV_Value, *VarCoord, Sensitivity, **Gradient, my_Gradient, *Normal, Area = 0.0;
-  unsigned short iDV_Value = 0, iMarker, nMarker, iDim, nDim, iDV, nDV, nDV_Value;
-  unsigned long iVertex, nVertex, iPoint;
+  unsigned short iDV_Value = 0, iMarker, nMarker, iDim, nDim, nDV_Value;
+  unsigned long iVertex, nVertex, iPoint,nDV, iDV;
+  bool fiml = false; //JRH 04172017
   
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -540,12 +544,13 @@ void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
   VarCoord = NULL;
   
   /*--- Structure to store the gradient ---*/
-  
+  cout << "JRH Debugging: In SetProjection_AD" << endl;
   Gradient = new su2double*[nDV];
   
   for (iDV = 0; iDV  < nDV; iDV++){
     nDV_Value =  config->GetnDV_Value(iDV);
     Gradient[iDV] = new su2double[nDV_Value];
+    if (config->GetDesign_Variable(iDV) == FIML) fiml = true;
   }
   
   /*--- Discrete adjoint gradient computation ---*/
@@ -554,71 +559,86 @@ void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
     cout << "Evaluate functional gradient using Algorithmic Differentiation." << endl;
   
   /*--- Start recording of operations ---*/
-  
+  cout << "JRH Debugging: Starting AD Recording" << endl;
   AD::StartRecording();
+
   
   /*--- Register design variables as input and set them to zero
    * (since we want to have the derivative at alpha = 0, i.e. for the current design) ---*/
   
-  
-  
+  if (config->GetKind_Turb_Model()==SA_FIML) {
+	  cout << "JRH Debugging: FIML Case, setting fiml = true" << endl;
+	  fiml = true;
+  }
+  cout << "JRH Debugging: Setting DV Values With config->SetDV_Value()" << endl;
   for (iDV = 0; iDV < nDV; iDV++){
     
     nDV_Value =  config->GetnDV_Value(iDV);
     
     for (iDV_Value = 0; iDV_Value < nDV_Value; iDV_Value++){
-      
+    	//JRH - Don't want to reset the value of the FIML design variable to zero because it is defined differently then deformation DVs
+    	//JRH - But we do want to register the DVs as input, but keep the current values.
       /*--- Initilization with su2double resets the index ---*/
       
-      DV_Value = 0.0;
+    	//if (!fiml)  {
+    	//  DV_Value = 0.0; //JRH - 04172017
+    	//}
+      //else
+      DV_Value = config->GetDV_Value(iDV,iDV_Value);
       
-      AD::RegisterInput(DV_Value);
-      
+      AD::RegisterInput(DV_Value); //This was originally performed for all DVs - JRH 04192017
       config->SetDV_Value(iDV, iDV_Value, DV_Value);
+
     }
   }
   
   /*--- Call the surface deformation routine ---*/
-  
-  surface_movement->SetSurface_Deformation(geometry, config);
-  
-  /*--- Stop the recording --- */
-  
+  //if (!fiml) {
+	  cout << "JRH Debugging: Calling SetSurface_Deformation() in SU2_GEO.cpp" << endl;
+	  surface_movement->SetSurface_Deformation(geometry, config);
+	  cout << "JRH Debugging: Back from SU2_GEO.cpp" << endl;
+	  /*--- Stop the recording --- */
+  //}
   AD::StopRecording();
+
   
-  /*--- Initialize the derivatives of the output of the surface deformation routine
-   * with the discrete adjoints from the CFD solution ---*/
-  
-  for (iMarker = 0; iMarker < nMarker; iMarker++) {
-    if (config->GetMarker_All_DV(iMarker) == YES) {
-      nVertex = geometry->nVertex[iMarker];
-      for (iVertex = 0; iVertex <nVertex; iVertex++) {
-        iPoint      = geometry->vertex[iMarker][iVertex]->GetNode();
-        VarCoord    = geometry->vertex[iMarker][iVertex]->GetVarCoord();
-        Normal      = geometry->vertex[iMarker][iVertex]->GetNormal();
-        
-        Area = 0.0;
-        for (iDim = 0; iDim < nDim; iDim++){
-          Area += Normal[iDim]*Normal[iDim];
-        }
-        Area = sqrt(Area);
-        
-        for (iDim = 0; iDim < nDim; iDim++){
-          if (config->GetDiscrete_Adjoint()){
-            Sensitivity = geometry->GetSensitivity(iPoint, iDim);
-          } else {
-            Sensitivity = -Normal[iDim]*geometry->vertex[iMarker][iVertex]->GetAuxVar()/Area;
-          }
-          SU2_TYPE::SetDerivative(VarCoord[iDim], SU2_TYPE::GetValue(Sensitivity));
-        }
-      }
-    }
-  }
-  
+	  /*--- Initialize the derivatives of the output of the surface deformation routine
+	   * with the discrete adjoints from the CFD solution ---*/
+	//if (!fiml) { // JRH 04282017
+		  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+			if (config->GetMarker_All_DV(iMarker) == YES) {
+			  nVertex = geometry->nVertex[iMarker];
+			  for (iVertex = 0; iVertex <nVertex; iVertex++) {
+				iPoint      = geometry->vertex[iMarker][iVertex]->GetNode();
+				VarCoord    = geometry->vertex[iMarker][iVertex]->GetVarCoord();
+				Normal      = geometry->vertex[iMarker][iVertex]->GetNormal();
+
+				Area = 0.0;
+				for (iDim = 0; iDim < nDim; iDim++){
+				  Area += Normal[iDim]*Normal[iDim];
+				}
+				Area = sqrt(Area);
+
+				for (iDim = 0; iDim < nDim; iDim++){
+				  if (config->GetDiscrete_Adjoint()){
+					Sensitivity = geometry->GetSensitivity(iPoint, iDim);
+				  } else {
+					Sensitivity = -Normal[iDim]*geometry->vertex[iMarker][iVertex]->GetAuxVar()/Area;
+				  }
+				  SU2_TYPE::SetDerivative(VarCoord[iDim], SU2_TYPE::GetValue(Sensitivity));
+				}
+			  }
+			}
+		  }
+	//}
+
   /*--- Compute derivatives and extract gradient ---*/
-  
+  cout << "JRH Debugging: Calling AD::ComputeAdjoint()" << endl;
   AD::ComputeAdjoint();
-  
+  if (fiml) {
+	  GetBetaFimlGrad(geometry, config);
+  }
+  cout << "JRH Debugging: Starting to call GetDerivative()" << endl;
   for (iDV = 0; iDV  < nDV; iDV++){
     nDV_Value =  config->GetnDV_Value(iDV);
     
@@ -626,36 +646,42 @@ void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
       DV_Value = config->GetDV_Value(iDV, iDV_Value);
       my_Gradient = SU2_TYPE::GetDerivative(DV_Value);
 #ifdef HAVE_MPI
-      SU2_MPI::Allreduce(&my_Gradient, &Gradient[iDV][iDV_Value], 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (!fiml) SU2_MPI::Allreduce(&my_Gradient, &Gradient[iDV][iDV_Value], 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #else
-      Gradient[iDV][iDV_Value] = my_Gradient;
+      if (!fiml) Gradient[iDV][iDV_Value] = my_Gradient;
 #endif
       
       /*--- Angle of Attack design variable (this is different,
-       the value comes form the input file) ---*/
+       the value comes from the input file) ---*/
       
       if ((config->GetDesign_Variable(iDV) == ANGLE_OF_ATTACK) ||
           (config->GetDesign_Variable(iDV) == FFD_ANGLE_OF_ATTACK))  {
         Gradient[iDV][iDV_Value] = config->GetAoA_Sens();
       }
-      
+      if (fiml) {
+    	  //NOTE THE NEGATIVE...TESTING JRH 09042017 - REMOVED NEGATIVE!! 09282017
+    	  Gradient[iDV][iDV_Value] = beta_fiml_grad[iDV];
+    	  //cout << "JRH DEBUGGING: Gradient[iDV] = " << Gradient[iDV][iDV_Value] << "beta_fiml_grad[iDV] = " << beta_fiml_grad[iDV] << endl;
+      }
     }
   }
   
   /*--- Print gradients to screen and file ---*/
-  
-  OutputGradient(Gradient, config, Gradient_file);
+  cout << "JRH Debugging: Beginning to output gradient file" << endl;
+  if (rank == MASTER_NODE) OutputGradient(Gradient, config, Gradient_file);
   
   for (iDV = 0; iDV  < nDV; iDV++){
     delete [] Gradient[iDV];
   }
   delete [] Gradient;
+  delete [] beta_fiml_grad;
+  cout << "JRH Debugging: Done in SU2_DOT::SetProjection_AD()" << endl;
 }
 
 void OutputGradient(su2double** Gradient, CConfig* config, ofstream& Gradient_file){
   
-  unsigned short nDV, iDV, iDV_Value, nDV_Value;
-  
+  unsigned short iDV_Value, nDV_Value;
+  unsigned long nDV, iDV;
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -700,4 +726,213 @@ void OutputGradient(su2double** Gradient, CConfig* config, ofstream& Gradient_fi
       cout <<"-------------------------------------------------------------------------" << endl;
     }
   }
+}
+
+void GetBetaFimlGrad(CGeometry *geometry, CConfig* config){
+	string 	restart_filename = "beta_fiml_grad.dat";
+	string   text_line;
+	ifstream restart_file;
+
+	unsigned long nDV = config->GetnDV();
+	beta_fiml_grad = new su2double[nDV];
+
+		  /*--- Open the restart file, and throw an error if this fails. ---*/
+
+	restart_file.open(restart_filename.data(), ios::in);
+	if (restart_file.fail()) {
+//		if (rank == MASTER_NODE)
+			cout << "There is no beta fiml grad restart file!! " << restart_filename.data() << "."<< endl;
+			exit(EXIT_FAILURE);
+	}
+
+
+	for (unsigned long iDV = 0; iDV < nDV; iDV++) {
+		getline (restart_file, text_line);
+		istringstream point_line(text_line);
+		point_line >> beta_fiml_grad[iDV];
+	}
+	restart_file.close();
+
+//	  /*JRH 06232017 - Stole this code from solver_direct_mean.c CEulerSolver::LoadRestart(). Attempting to read in beta_fiml_grad
+//	   * from restart file of discrete adjoint solution. This gradient *shouldn't* have to be modified in any way by SU2_DOT and should
+//	   * be written directly to the gradient output file.
+//	   */
+//	  /*--- Restart the solution from file information ---*/
+//	  unsigned short iDim, iVar, iMesh, iMeshFine;
+//	  unsigned long iPoint, index, iChildren, Point_Fine;
+//	  unsigned short turb_model = config->GetKind_Turb_Model();
+//	  su2double Area_Children, Area_Parent, *Coord, *Solution_Fine, dull_val;
+//	  bool grid_movement  = config->GetGrid_Movement();
+//	  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
+//	                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+//	  bool steady_restart = config->GetSteadyRestart();
+//	  bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
+//	  string UnstExt, text_line;
+//	  ifstream restart_file;
+//	  unsigned short nDim = geometry->GetnDim();
+//	  unsigned short iZone = config->GetiZone();
+//	  unsigned short nZone = geometry->GetnZone();
+//	  string restart_filename = config->GetSolution_FlowFileName();
+//	  su2double beta_fiml, sensitivity_x, sensitivity_y, Solution_0, Solution_1, Solution_2, Solution_3, Solution_4, Solution_5, Solution_6, sensitivity;
+//	  su2double  *beta_fiml_grad_nodes;
+//	  su2double *beta_fiml_grad_local;
+//	  Coord = new su2double [nDim];
+//	  for (iDim = 0; iDim < nDim; iDim++)
+//	    Coord[iDim] = 0.0;
+//
+//	  int rank = MASTER_NODE;
+//	  int size;
+//	#ifdef HAVE_MPI
+//	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//	  MPI_Comm_size(MPI_COMM_WORLD, &size);
+//	#endif
+//
+//	  if (turb_model != SA_FIML) cout << "JRH Error SU2_DOT::GetBetaFimlGrad(): Turbulence model not SA_FIML and this routine should only be called if FIML case" << endl;
+//
+//	  /*--- Multizone problems require the number of the zone to be appended. ---*/
+//
+//	  //if (nZone > 1)
+//	  //  restart_filename = config->GetMultizone_FileName(restart_filename, iZone);
+//	  //restart_filename = config->GetRestart_AdjFileName();
+//	  //restart_filename = config->GetAdj_FileName();
+//	  //restart_filename = config->GetObjFunc_Extension(restart_filename);
+//	  restart_filename = "solution_adj_cd.dat";
+//	  //restart_filename = "solution_" << config->GetAdj_FileName();
+//	  //restart_filename = config->GetObjFunc_Extension(restart_filename);
+//	  /*--- Modify file name for an unsteady restart ---*/
+//
+//	  if (dual_time || time_stepping) {
+//		  cout << "JRH Error SU2_DOT::GetBetaFimlGrad(): Unsteady FIML not yet implemented!!" << endl;
+//	      //restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
+//	  }
+//	  cout << "JRH Debugging: In SU2_DOT::GetBetaFimlGrad() Beginning to read in beta_fiml_grad from restart file " << restart_filename << endl;
+//
+//	  /*--- Open the restart file, and throw an error if this fails. ---*/
+//
+//	  restart_file.open(restart_filename.data(), ios::in);
+//	  if (restart_file.fail()) {
+//	    if (rank == MASTER_NODE)
+//	      cout << "There is no flow restart file!! " << restart_filename.data() << "."<< endl;
+//	    exit(EXIT_FAILURE);
+//	  }
+//
+//	  /*--- In case this is a parallel simulation, we need to perform the
+//	   Global2Local index transformation first. ---*/
+//
+//	  map<unsigned long,unsigned long> Global2Local;
+//	  map<unsigned long,unsigned long>::const_iterator MI;
+//
+//	  /*--- Now fill array with the transform values only for local points ---*/
+//	  long nPoint = geometry->GetnPointDomain();
+//	  beta_fiml_grad = new su2double[geometry->GetGlobal_nPointDomain()];
+//	  beta_fiml_grad_local = new su2double[geometry->GetnPoint()];
+//	  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+//	    Global2Local[geometry->node[iPoint]->GetGlobalIndex()] = iPoint;
+//	  }
+//
+//	  /*--- Read all lines in the restart file ---*/
+//	  cout << "JRH Debugging: In SU2_DOT::GetBetaFimlGrad() Beginning to read in beta_fiml_grad from restart file " << restart_filename << endl;
+//	  long iPoint_Local = 0; unsigned long iPoint_Global = 0;
+//
+//	  /*--- The first line is the header ---*/
+//
+//	  getline (restart_file, text_line);
+//	  beta_fiml_grad_nodes = new su2double[geometry->GetGlobal_nPointDomain()];
+//	  for (iPoint_Global = 0; iPoint_Global < geometry->GetGlobal_nPointDomain(); iPoint_Global++) beta_fiml_grad_nodes[iPoint_Global] = 0.0;
+//	  for (iPoint_Global = 0; iPoint_Global < geometry->GetGlobal_nPointDomain(); iPoint_Global++ ) {
+//
+//	    getline (restart_file, text_line);
+//
+//	    istringstream point_line(text_line);
+//
+//	    /*--- Retrieve local index. If this node from the restart file lives
+//	     on the current processor, we will load and instantiate the vars. ---*/
+//
+//	    MI = Global2Local.find(iPoint_Global);
+//	    if (MI != Global2Local.end()) {
+//
+//	      iPoint_Local = Global2Local[iPoint_Global];
+//
+//	      if (nDim == 2) point_line >> index >> Coord[0] >> Coord[1] >> Solution_0 >> Solution_1 >> Solution_2 >> Solution_3 >> Solution_4 >> sensitivity >> sensitivity_x >> sensitivity_y >> beta_fiml >> beta_fiml_grad_local[iPoint_Local];
+//	      if (nDim == 3) point_line >> index >> Coord[0] >> Coord[1] >> Coord[2] >> Solution_0 >> Solution_1 >> Solution_2 >> Solution_3 >> Solution_4 >> Solution_5 >> sensitivity >> sensitivity_x >> sensitivity_y >> beta_fiml >> beta_fiml_grad_local[iPoint_Local];
+//	      if (rank == MASTER_NODE) cout << "JRH_Debugging: For iPoint_Global = " << index << " beta = " << beta_fiml << " beta_fiml_grad = " << beta_fiml_grad_local[iPoint_Local] << endl;
+//	     //"PointID"	"x"	"y"	"Conservative_1"	"Conservative_2"	"Conservative_3"	"Conservative_4"	"Conservative_5"	"Surface_Sensitivity"	"Sensitivity_x"	"Sensitivity_y"	"Beta_fiml"	"Beta_fiml_grad"
+//
+//	      //node[iPoint_Local]->SetSolution(Solution);
+//
+//	      /*--- For dynamic meshes, read in and store the
+//	       grid coordinates and grid velocities for each node. ---*/
+//
+//	      if (grid_movement) {
+//	    	  cout << "JRH ERROR SU2_DOT::GetBetaFimlGrad(): Grid Movement Not Implemented" << endl;
+//	      }
+//
+//	    }
+//
+//	  }
+//	  unsigned long Fiml_Skip_Index = 0;
+//#ifdef HAVE_MPI
+//	  //if (config->GetKind_Turb_Model() == SA_FIML) {
+//		  unsigned long *nPointFiml_Local;
+//		  unsigned long *nPointFiml;
+//		  nPointFiml_Local = new unsigned long[size];
+//		  nPointFiml = new unsigned long[size];
+//		  for (unsigned short iRank = 0; iRank < size ; iRank++) nPointFiml_Local[iRank] = 0;
+//		  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+//			  if (geometry->node[iPoint]->GetDomain()) nPointFiml_Local[rank]++;
+//		  }
+//		  //SU2_MPI::Allreduce(&Local_Sens_Beta_Fiml[iDV],  &Total_Sens_Beta_Fiml[iDV],  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+//		  for (unsigned short iRank = 0; iRank < size ; iRank++) {
+//			  SU2_MPI::Allreduce(&nPointFiml_Local[iRank],  &nPointFiml[iRank],  1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+//		  }
+//		  for (unsigned short iRank = 0 ; iRank < rank ; iRank++) Fiml_Skip_Index += nPointFiml[iRank];
+//		  unsigned long Total_Fiml_Nodes = 0;
+//		  for (unsigned short iRank = 0 ; iRank < size ; iRank++) Total_Fiml_Nodes += nPointFiml[iRank];
+//		  //Fiml_Skip_Index += rank;
+//		  cout << "JRH Debugging: In SU2_DOT::GetBetaFimlGrad() " << rank << " nPoint = " << nPoint << " and begins with fiml variable " << Fiml_Skip_Index << endl;
+//		  if (rank == MASTER_NODE) cout << "Total_Fiml_Nodes = " << Total_Fiml_Nodes << endl;
+//	  //}
+//#else
+//#endif
+//	  	  for (iPoint_Global = 0; iPoint_Global < geometry->GetGlobal_nPointDomain(); iPoint_Global++) {
+//	  		  beta_fiml_grad[iPoint_Global] = 0.0;
+//	  	  }
+//
+//		  unsigned long nDV_Local = 0;
+//		  for (iPoint = 0; iPoint < nPoint; iPoint++ ) {
+//		  /*--- Retrieve local index. If this node from the restart file lives
+//		   on the current processor, we will load and instantiate the vars. ---*/
+//
+//		  //MI = Global2Local.find(iPoint_Global);
+//		  //if (MI != Global2Local.end()) {
+//		  if (geometry->node[iPoint]->GetDomain()) {
+//				//iPoint_Local = Global2Local[iPoint_Global];
+//					//node[iPoint_Global]->SetBetaFiml(config->GetDV_Value(nDV_Local+Fiml_Skip_Index,0)+1.0);
+//					//beta_fiml_grad_nodes[nDV_Local+Fiml_Skip_Index] = beta_fiml_grad_local[iPoint_Global];
+//					//if (rank == MASTER_NODE) cout << "JRH Debugging: In turb solver setting node " << iPoint_Global << " to iDV =  " << nDV_Local+Fiml_Skip_Index << " = " << config->GetDV_Value(nDV_Local+Fiml_Skip_Index,0)+1.0 << endl;
+//
+//			  beta_fiml_grad_nodes[nDV_Local+Fiml_Skip_Index] = beta_fiml_grad_local[iPoint];
+//			  nDV_Local++;
+//		  }
+//
+//
+//	  }
+//#ifdef HAVE_MPI
+//		  for(unsigned long iPoint = 0; iPoint < geometry->GetGlobal_nPointDomain(); iPoint++) {
+//			  SU2_MPI::Allreduce(&beta_fiml_grad_nodes[iPoint],  &beta_fiml_grad[iPoint],  1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+//			  if (rank == MASTER_NODE) cout << "JRH Debugging: In GetBetaFiml iPoint = " << iPoint << " and beta_fiml_grad = " << beta_fiml_grad[iPoint] << endl;
+//		  }
+//#else
+//		  for(unsigned long iPoint = 0; iPoint < geometry->GetGlobal_nPointDomain(); iPoint++) {
+//			  beta_fiml_grad[iPoint] = beta_fiml_grad_nodes[iPoint];
+//		  }
+//#endif
+//
+//	  /*--- Close the restart file ---*/
+//
+//	  restart_file.close();
+//
+//	  delete [] Coord;
+//	  delete [] beta_fiml_grad_nodes;
+//	  delete [] beta_fiml_grad_local;
 }

@@ -290,7 +290,7 @@ def obj_df(dvs,config,state=None):
             for i_grd in range(dv_size[i_dv]):
                 grad[k] = grad[k] / dv_scl
                 k = k + 1
-
+                    
         vals_out.append(grad)
     else:
         marker_monitored = config['MARKER_MONITORING']
@@ -303,16 +303,29 @@ def obj_df(dvs,config,state=None):
 
             
             # Evaluate Objective Gradient
-    #        sys.stdout.write('  %s... ' % this_obj.title())
+            #sys.stdout.write('  %s... ' % this_obj.title())
             grad = su2grad(this_obj,grad_method,config,state)
-    #        sys.stdout.write('done\n')
+            #sys.stdout.write('done\n')
             
             # scaling and sign
+            #JRH 08162017
             k = 0
-            for i_dv,dv_scl in enumerate(dv_scales):
-                for i_grd in range(dv_size[i_dv]):
-                    grad[k] = grad[k] * sign * scale / dv_scl
-                    k = k + 1
+            if config['NPOIN'] == 0 :
+                for i_dv,dv_scl in enumerate(dv_scales):
+                    for i_grd in range(dv_size[i_dv]):
+                        grad[k] = grad[k] * sign * scale / dv_scl
+                        k = k + 1
+            else :
+                for i_dv in range(1,len(grad)) :
+                    #min_max_g = float(config['MIN_MAX_GRAD'])
+                    #if config['MIN_MAX_GRAD'] > 0.0 : #Apply Min/Max limit to gradients if defined JRH 03242018
+                        #if grad[i_dv] > min_max_g :
+                            #grad[i_dv] = min_max_g 
+                        #if grad[i_dv] < -min_max_g :
+                            #grad[i_dv] = -min_max_g
+                    grad[i_dv] = grad[i_dv] * sign * scale / dv_scales[0]
+                    
+                        
             
             vals_out.append(grad)
     

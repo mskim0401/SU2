@@ -76,15 +76,53 @@ def projection( config, state={}, step = 1e-3 ):
     # local copy
     konfig = copy.deepcopy(config)
             
-    # choose dv values 
+    # choose dv values
     Definition_DV = konfig['DEFINITION_DV']
-    n_DV          = sum(Definition_DV['SIZE'])
+    if konfig.NPOIN == 0:    
+        n_DV          = sum(Definition_DV['SIZE'])
+    else:
+        if config.KIND_TRAIN_NN == 'WEIGHTS':
+            layers = int(config.N_HIDDEN_LAYERS)+2
+            num_nodes = [5] #5 if bias nodes
+            for iLayer in range(1,layers-1) :
+                num_nodes.append(int(config.N_NEURONS))
+            num_nodes.append(1) #2 if bias nodes
+            num_inputs = [5] #5 if bias nodes
+            #num_inputs.append(int(5))
+            for iLayer in range(1,layers) :
+                num_inputs.append(int(config.N_NEURONS))
+            n_DV = 0
+            for iLayer in range(1,layers) :
+                for iNode in range(num_nodes[iLayer]) :
+                    for iInput in range(num_inputs[iLayer-1]) :
+                        if (iLayer > 0) :  #JRH 09232018 - Removing input layer weights from costly computation
+                            n_DV+=1        
+        else:
+            n_DV = int(konfig.NPOIN)
+    
     if isinstance(step,list):
         assert len(step) == n_DV , 'unexpected step vector length'
     else:
         step = [step]*n_DV
-    dv_old = [0.0]*n_DV # SU2_DOT input requirement, assumes linear superposition of design variables
-    dv_new = step
+        
+    if konfig.NPOIN == 0 :
+        dv_old = [0.0]*n_DV # SU2_DOT input requirement, assumes linear superposition of design variables
+    else :
+        dv_old = konfig.DV_VALUE
+        dv_value = konfig.DV_VALUE
+        if len(dv_old) < konfig.NPOIN :
+            dv_old = [0.0]*n_DV
+            config.DV_VALUE_OLD = dv_old
+            #konfig.DV_VALUE_OLD = dv_old
+        
+    
+    if int(konfig.NPOIN) == 0 :
+        dv_new = step
+    else :
+        dv_new = dv_value
+        #dv_new = dv_old+dv_new #SU2 assumes dv_old = 0.0*n_dv and dv_new is step
+        #dv_new = [sum(x) for x in zip(dv_old , dv_new)]      
+        
     konfig.unpack_dvs(dv_new,dv_old)
 
     # filenames
@@ -125,7 +163,7 @@ def projection( config, state={}, step = 1e-3 ):
                 if (konfig.DV_KIND[idv] == 'CUSTOM'):
                     raw_gradients[idv] = 0.0
                     custom_dv = custom_dv+1
-    
+            
     # Write Gradients
     data_plot = su2util.ordered_bunch()
     data_plot['VARIABLE']     = range(len(raw_gradients)) 

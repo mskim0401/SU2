@@ -112,23 +112,56 @@ protected:
   su2double **Smatrix,  /*!< \brief Auxiliary structure for computing gradients by least-squares */
   **Cvector;       /*!< \brief Auxiliary structure for computing gradients by least-squares */
   
+
   unsigned short nOutputVariables;  /*!< \brief Number of variables to write. */
-  
+
+  //su2double **FimlFeatures; //JRH 02022018 - Array to store variables to be output for machine learning (features)
+  //unsigned short numFeatures = 0; //JRH 02022018 - Number of features to be output at each node
+  unsigned short kind_scale;
+  su2double *edf1, *edf2, *edf3, *edf4, *ledf1, *ledf2, *ledf3, *ledf4;
+  su2double ***weights; //JRH 04172018 - Matrix to store weights of multi-layer perceptron Neural Network
+  su2double ***lweights;
+  su2double *weight_send;
+  su2double *weight_recv;
+  su2double *feat_send;
+  su2double *feat_recv;
+  su2double sse, lloss;
+  su2double ***Ep; //JRH 04182018 - Matrix to store derivative of training error w.r.t each weight - same dimensions as weights
+  bool restart_gate, train_NN, filter_shield;
+  su2double *restart_f1, *restart_f2, *restart_f3, *restart_f4, *min_max_send, *min_max_recv;
+  su2double mean_f1,mean_f2,mean_f3,mean_f4,std_f1,std_f2,std_f3,std_f4,learn_rate,min_f1,min_f2,min_f3,min_f4,max_f1,max_f2,max_f3,max_f4;
+  //unsigned short nBins;
+  unsigned long nPoint_Global,nTrainSamples;
+  su2double inv_nPoint_Global;
+  unsigned long num_weights;
+  unsigned short nLayers; //JRH 04172018 - Num Layers in Neural Network training
+  unsigned short num_nn_inputs;
+  unsigned long nNeurons;
+  unsigned long *num_nodes;
+  unsigned long *num_inputs;
+  unsigned long *isHoldout;
+  unsigned long *Local2Global;
+  unsigned long num_epoch;
+  su2double **inputs; //outputs
+  su2double **ai; //activations
+  su2double **deltas;
+  bool jrh_debug;
+
 public:
-  
+
   CSysVector LinSysSol;    /*!< \brief vector to store iterative solution of implicit linear system. */
   CSysVector LinSysRes;    /*!< \brief vector to store iterative residual of implicit linear system. */
   CSysVector LinSysAux;    /*!< \brief vector to store iterative residual of implicit linear system. */
   CSysMatrix Jacobian; /*!< \brief Complete sparse Jacobian structure for implicit computations. */
-  
+
   CSysMatrix StiffMatrix; /*!< \brief Sparse structure for storing the stiffness matrix in Galerkin computations, and grid movement. */
-  
+
   CSysVector OutputVariables;    /*!< \brief vector to store the extra variables to be written. */
   string* OutputHeadingNames; /*< \brief vector of strings to store the headings for the exra variables */
-  
+
   CVariable** node;  /*!< \brief Vector which the define the variables for each problem. */
   CVariable* node_infty; /*!< \brief CVariable storing the free stream conditions. */
-  
+
   /*!
    * \brief Constructor of the class.
    */
@@ -230,6 +263,47 @@ public:
    */
   virtual CFluidModel* GetFluidModel(void);
   
+  /*!
+   * \brief Retrieve the value of beta_fiml at iPoint
+   * \param[in] iPoint - Index of node
+   */
+  virtual su2double GetBetaFiml(unsigned long iPoint);
+
+  /*!
+   * \brief Retrieve the value of beta_fiml_grad at iPoint
+   * \param[in] iPoint - Index of node
+   */
+  virtual su2double GetBetaFimlGrad(unsigned long iPoint);
+
+  /*!
+   * \brief Write beta fiml gradient to file
+   */
+  virtual void WriteBetaFimlGrad(void);
+
+  virtual void SetDES_LengthScale(CSolver** solver, CGeometry *geometry, CConfig *config);
+  virtual su2double GetEp(unsigned short iLayer, unsigned short iInput, unsigned short iNode);
+
+  virtual void WriteNNWeights(void);
+
+  virtual void ForwardPropagate(CConfig *config, CSolver **solver_container,CGeometry *geometry);
+
+  virtual void FindFeaturesMinMax(void); //05112018
+
+  virtual void ComputeEDF(unsigned short nBins); //05132018
+
+  virtual su2double GetNNGradient(unsigned short iLayer, unsigned long iInput, unsigned long iNode);
+
+  virtual su2double GetNNLossGradient(void);
+
+  virtual void SetAdjointNNLoss(su2double val_gradient);
+
+  virtual void SetAdjointNNSolution(unsigned short iLayer, unsigned long iInput, unsigned long iNode, su2double val_gradient);
+
+  virtual void RegisterWeights(bool input);
+
+  virtual void SetWeight(unsigned short iLayer, unsigned long iInput, unsigned long iNode, su2double val_gradient);
+  virtual su2double GetWeight(unsigned short iLayer, unsigned long iInput, unsigned long iNode);
+
   /*!
    * \brief Get number of linear solver iterations.
    * \return Number of linear solver iterations.
@@ -1243,6 +1317,32 @@ public:
   
   /*!
    * \brief A virtual member.
+   * \param[in] iFeature - Feature marker.
+   * \param[in] iNode - Node marker
+   * \return Value of specified machine learning feature at node iNode
+   */
+  //virtual su2double GetFimlFeature(unsigned short iFeature, unsigned long iNode); //JRH 02022018
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] fnum - Number of features to be output for machine learning
+   */
+  //virtual void SetNumFeatures(unsigned short fnum); //JRH 02022018
+
+  /*!
+   * \brief A virtual member.
+   * \return Number of features to be output for machine learning
+   */
+  //virtual unsigned short GetNumFeatures(void); //JRH 02022018
+
+  /*!
+   * \brief Provide Averaged Total Temperature at the boundary of interest.
+   * \param[in] val_marker - bound marker.
+   * \return Value of the Average Density on the surface <i>val_marker</i>.
+   */
+
+  /*!
+   * \brief A virtual member.
    * \param[in] val_marker - bound marker.
    * \return Value of the Average Normal Velocity on the surface <i>val_marker</i>.
    */
@@ -1410,6 +1510,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   virtual void Friction_Forces(CGeometry *geometry, CConfig *config);
+  virtual void Friction_Forces(CGeometry *geometry, CConfig *config, CSolver *turb_sol); //JRH Addition
   
   /*!
    * \brief A virtual member.
@@ -2240,7 +2341,43 @@ public:
    * \return Value of the difference of the presure and the target pressure.
    */
   virtual su2double GetTotal_CpDiff(void);
-  
+
+  /*!
+   *\brief A virtual member.
+   * \return Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  virtual su2double GetTotal_CpDiff_FIML(void); //JRH 10112017
+
+  /*!
+   * \brief A virtual member.
+   * \return Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  virtual su2double GetTotal_ClDiff_FIML(void); //JRH 10112017
+
+  /*!
+   * \brief A virtual member.
+   * \return Value of the lift cefficient difference with FIML correction.
+   */
+  virtual su2double GetTotal_ClDiff(void); //JRH 10112017
+
+  /*!
+   * \brief A virtual member.
+   * \return Value of the drag cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  virtual su2double GetTotal_CdDiff_FIML(void); //JRH 10112017
+
+  /*!
+   * \brief A virtual member.
+   * \return Value of the drag cefficient difference with FIML correction.
+   */
+  virtual su2double GetTotal_CdDiff(void); //JRH 10112017
+  /*!
+   * \brief A virtual member.
+   * \return Value of the NN Loss function.
+   */
+  virtual su2double GetTotal_Loss(void); //JRH 04242018
+
+  virtual void SetTotal_SSE(su2double val_sse);
   /*!
    * \brief A virtual member.
    * \return Value of the difference of the heat and the target heat.
@@ -2295,7 +2432,37 @@ public:
    * \param[in] val_pressure - Value of the difference between pressure and the target pressure.
    */
   virtual void SetTotal_CpDiff(su2double val_pressure);
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  virtual void SetTotal_CpDiff_FIML(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  virtual void SetTotal_ClDiff_FIML(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total lift coefficient difference from target.
+   * \param[in]  Value of the lift cefficient difference with FIML correction.
+   */
+  virtual void SetTotal_ClDiff(su2double val_pressure); //JRH 10112017
   
+  /*!
+   * \brief Provide the total drag coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the drag cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  virtual void SetTotal_CdDiff_FIML(su2double val_pressure); //JRH 10112017
+  virtual void SetTotal_Loss(su2double val_loss);
+  /*!
+   * \brief Provide the total pressure coefficient difference from target.
+   * \param[in]  Value of the drag cefficient difference with FIML correction.
+   */
+  void SetTotal_CdDiff(su2double val_pressure); //JRH 10112017
+
   /*!
    * \brief A virtual member.
    * \param[in] val_pressure - Value of the difference between heat and the target heat.
@@ -3326,6 +3493,9 @@ public:
    */
   virtual void RegisterSolution(CGeometry *geometry, CConfig *config);
   
+  virtual void RegisterNNSolution(CGeometry *geometry, CConfig *config); //JRH 05052018
+  virtual void ExtractNNAdjoint(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -3514,7 +3684,7 @@ public:
    * \param[in] Value of freestream pressure.
    */
   virtual void SetPressure_Inf(su2double p_inf);
-  
+
   /*!
    * \brief A virtual member.
    * \param[in] Value of freestream temperature.
@@ -3626,7 +3796,8 @@ protected:
   Energy_Inf,      /*!< \brief Energy at the infinity. */
   Temperature_Inf,      /*!< \brief Energy at the infinity. */
   Pressure_Inf,    /*!< \brief Pressure at the infinity. */
-  *Velocity_Inf;    /*!< \brief Flow Velocity vector at the infinity. */
+  *Velocity_Inf,    /*!< \brief Flow Velocity vector at the infinity. */
+  *Beta_Fiml;       /*!< \brief Beta FIML Correction Variable at Each Point JRH 04192017*/
   
   su2double
   *CD_Inv,  /*!< \brief Drag coefficient (inviscid contribution) for each boundary. */
@@ -3792,7 +3963,14 @@ protected:
   Total_CNearFieldOF,      /*!< \brief Total Near-Field Pressure coefficient for all the boundaries. */
   Total_CpDiff,      /*!< \brief Total Equivalent Area coefficient for all the boundaries. */
   Total_HeatFluxDiff,      /*!< \brief Total Equivalent Area coefficient for all the boundaries. */
-  Total_MassFlowRate;     /*!< \brief Total Mass Flow Rate on monitored boundaries. */
+  Total_MassFlowRate,     /*!< \brief Total Mass Flow Rate on monitored boundaries. */
+  Total_CpDiff_FIML, /*!< \brief Total pressure coefficient difference with weight factor on FIML vars - JRH 10112017. */
+  Total_ClDiff, /*!< \brief Total lift coefficient difference from target - JRH 10112017. */
+  Total_ClDiff_FIML, /*!< \brief Total lift coefficient difference from target with weight factor on FIML vars- JRH 10112017. */
+  Total_CdDiff, /*!< \brief Total drag coefficient difference from target - JRH 10112017. */
+  Total_CdDiff_FIML, /*!< \brief Total drag coefficient difference from target with weight factor on FIML vars- JRH 10112017. */
+  Total_Loss; /*!< \brief Value of loss function for neural network - JRH 10112017. */
+
   su2double *Surface_CL,   /*!< \brief Lift coefficient for each monitoring surface. */
   *Surface_CD,          /*!< \brief Drag coefficient for each monitoring surface. */
   *Surface_CSF,     /*!< \brief Side-force coefficient for each monitoring surface. */
@@ -4667,6 +4845,26 @@ public:
   su2double GetPressureRatio(unsigned short inMarkerTP);
   
   /*!
+   * \brief Provide requested feature
+   * \param[in] iFeature - Feature marker.
+   * \param[in] iNode - Node marker
+   * \return Value of specified machine learning feature at node iNode
+   */
+  //su2double GetFimlFeature(unsigned short iFeature, unsigned long iNode); //JRH 02022018
+
+  /*!
+   * \brief Set number of features
+   * \param[in] fnum - Number of features to be output for machine learning
+   */
+  //void SetNumFeatures(unsigned short fnum); //JRH 02022018
+
+  /*!
+   * \brief Get the number of features
+   * \return Number of features to be output for machine learning
+   */
+  //unsigned short GetNumFeatures(void); //JRH 02022018
+
+  /*!
    * \brief Provide Averaged Total Temperature at the boundary of interest.
    * \param[in] val_marker - bound marker.
    * \return Value of the Average Density on the surface <i>val_marker</i>.
@@ -5182,6 +5380,37 @@ public:
   su2double GetTotal_CpDiff(void);
   
   /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \return Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  su2double GetTotal_CpDiff_FIML(void); //JRH 10112017
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \return Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  su2double GetTotal_ClDiff_FIML(void); //JRH 10112017
+
+  /*!
+   * \brief Provide the total lift coefficient difference from target.
+   * \return Value of the lift cefficient difference with FIML correction.
+   */
+  su2double GetTotal_ClDiff(void); //JRH 10112017
+
+  /*!
+   * \brief Provide the total drag coefficient difference from target with correction factor penalty.
+   * \return Value of the drag cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  su2double GetTotal_CdDiff_FIML(void); //JRH 10112017
+  su2double GetTotal_Loss(void);
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target.
+   * \return Value of the drag cefficient difference with FIML correction.
+   */
+  su2double GetTotal_CdDiff(void); //JRH 10112017
+
+  /*!
    * \brief Provide the total (inviscid + viscous) non dimensional Equivalent Area coefficient.
    * \return Value of the Equivalent Area coefficient (inviscid + viscous contribution).
    */
@@ -5230,6 +5459,36 @@ public:
    */
   void SetTotal_CpDiff(su2double val_pressure);
   
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  void SetTotal_CpDiff_FIML(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  void SetTotal_ClDiff_FIML(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total lift coefficient difference from target.
+   * \param[in]  Value of the lift cefficient difference with FIML correction.
+   */
+  void SetTotal_ClDiff(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total drag coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the drag cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  void SetTotal_CdDiff_FIML(su2double val_pressure); //JRH 10112017
+  void SetTotal_Loss(su2double val_loss);
+  /*!
+   * \brief Provide the total pressure coefficient difference from target.
+   * \param[in]  Value of the drag cefficient difference with FIML correction.
+   */
+  void SetTotal_CdDiff(su2double val_pressure); //JRH 10112017
+
   /*!
    * \brief Set the value of the Equivalent Area coefficient.
    * \param[in] val_cequivarea - Value of the Equivalent Area coefficient.
@@ -5971,6 +6230,13 @@ public:
   void SetPressure_Inf(su2double p_inf);
   
   /*!
+   * \brief Set the value of the FIML correction.
+   * \param[in] Value of Beta_Fiml Correction Term.
+   * \param[in] Point Index
+   */
+  void SetBeta_Fiml(su2double Val_Beta_Fiml, unsigned short iPoint);
+
+  /*!
    * \brief Set the freestream temperature.
    * \param[in] Value of freestream temperature.
    */
@@ -6121,7 +6387,13 @@ protected:
   Total_MaxHeat, /*!< \brief Maximum heat flux on all boundaries. */
   Total_CpDiff,      /*!< \brief Total Equivalent Area coefficient for all the boundaries. */
   Total_HeatFluxDiff,      /*!< \brief Total Equivalent Area coefficient for all the boundaries. */
-  Total_MassFlowRate;     /*!< \brief Total Mass Flow Rate on monitored boundaries. */
+  Total_MassFlowRate,     /*!< \brief Total Mass Flow Rate on monitored boundaries. */
+  Total_CpDiff_FIML, /*!< \brief Total pressure coefficient difference with weight factor on FIML vars - JRH 10112017. */
+  Total_ClDiff, /*!< \brief Total lift coefficient difference from target - JRH 10112017. */
+  Total_ClDiff_FIML, /*!< \brief Total lift coefficient difference from target with weight factor on FIML vars- JRH 10112017. */
+  Total_CdDiff, /*!< \brief Total drag coefficient difference from target - JRH 10112017. */
+  Total_CdDiff_FIML, /*!< \brief Total drag coefficient difference from target with weight factor on FIML vars- JRH 10112017. */
+  Total_Loss; /*!< \brief Value of the loss function for NN training- JRH 04242018. */
   su2double *Surface_CL,   /*!< \brief Lift coefficient for each monitoring surface. */
   *Surface_CD,          /*!< \brief Drag coefficient for each monitoring surface. */
   *Surface_CSF,     /*!< \brief Side-force coefficient for each monitoring surface. */
@@ -6858,6 +7130,37 @@ public:
   su2double GetTotal_CpDiff(void);
   
   /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \return Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  su2double GetTotal_CpDiff_FIML(void); //JRH 10112017
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \return Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  su2double GetTotal_ClDiff_FIML(void); //JRH 10112017
+
+  /*!
+   * \brief Provide the total lift coefficient difference from target.
+   * \return Value of the lift cefficient difference with FIML correction.
+   */
+  su2double GetTotal_ClDiff(void); //JRH 10112017
+
+  /*!
+   * \brief Provide the total drag coefficient difference from target with correction factor penalty.
+   * \return Value of the drag cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  su2double GetTotal_CdDiff_FIML(void); //JRH 10112017
+  su2double GetTotal_Loss(void);
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target.
+   * \return Value of the drag cefficient difference with FIML correction.
+   */
+  su2double GetTotal_CdDiff(void); //JRH 10112017
+
+  /*!
    * \brief Provide the total (inviscid + viscous) non dimensional Equivalent Area coefficient.
    * \return Value of the Equivalent Area coefficient (inviscid + viscous contribution).
    */
@@ -6869,6 +7172,36 @@ public:
    */
   void SetTotal_CpDiff(su2double val_pressure);
   
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  void SetTotal_CpDiff_FIML(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total pressure coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the pressure cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  void SetTotal_ClDiff_FIML(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total lift coefficient difference from target.
+   * \param[in]  Value of the lift cefficient difference with FIML correction.
+   */
+  void SetTotal_ClDiff(su2double val_pressure); //JRH 10112017
+
+  /*!
+   * \brief Provide the total drag coefficient difference from target with correction factor penalty.
+   * \param[in]  Value of the drag cefficient difference with FIML correction (CpDiff+lambda*(1.0-beta)^2).
+   */
+  void SetTotal_CdDiff_FIML(su2double val_pressure); //JRH 10112017
+  void SetTotal_Loss(su2double val_loss);
+  /*!
+   * \brief Provide the total pressure coefficient difference from target.
+   * \param[in]  Value of the drag cefficient difference with FIML correction.
+   */
+  void SetTotal_CdDiff(su2double val_pressure); //JRH 10112017
+
   /*!
    * \brief Set the value of the Equivalent Area coefficient.
    * \param[in] val_cequivarea - Value of the Equivalent Area coefficient.
@@ -7293,6 +7626,13 @@ public:
   void SetPressure_Inf(su2double p_inf);
   
   /*!
+   * \brief Set the value of the FIML correction.
+   * \param[in] Value of Beta_Fiml Correction Term.
+   * \param[in] Point Index
+   */
+  void SetBeta_Fiml(su2double Val_Beta_Fiml, unsigned short iPoint);
+
+  /*!
    * \brief Set the freestream temperature.
    * \param[in] Value of freestream temperature.
    */
@@ -7584,6 +7924,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void Friction_Forces(CGeometry *geometry, CConfig *config);
+  void Friction_Forces(CGeometry *geometry, CConfig *config, CSolver *turb_sol);
   
   /*!
    * \brief Get the total heat flux.
@@ -7972,6 +8313,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void Friction_Forces(CGeometry *geometry, CConfig *config);
+  void Friction_Forces(CGeometry *geometry, CConfig *config, CSolver *turb_sol); //JRH 10272018
   
   /*!
    * \brief Get the non dimensional lift coefficient (viscous contribution).
@@ -8214,7 +8556,7 @@ public:
    * \param[in] val_iter - Current external iteration number.
    */
   void LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter);
-  
+
 };
 
 /*!
@@ -8442,6 +8784,38 @@ public:
    */
   void SetFreeStream_Solution(CConfig *config);
   
+  /*!
+   * \brief Write NN Weights to file for restart
+   */
+  void WriteNNWeights(void);
+
+  void SetDES_LengthScale(CSolver** solver, CGeometry *geometry, CConfig *config);
+
+  su2double GetEp(unsigned short iLayer, unsigned short iInput, unsigned short iNode);
+
+  void ForwardPropagate(CConfig *config,CSolver **solver_container, CGeometry *geometry);
+
+  void FindFeaturesMinMax(void); //05112018
+
+  void ComputeEDF(unsigned short nBins);
+
+  su2double GetNNGradient(unsigned short iLayer, unsigned long iInput, unsigned long iNode);
+
+  void SetAdjointNNSolution(unsigned short iLayer, unsigned long iInput, unsigned long iNode, su2double val_gradient);
+
+  void RegisterWeights(bool input);
+
+  su2double GetNNLossGradient(void);
+
+  void SetAdjointNNLoss(su2double val_gradient);
+
+  void SetWeight(unsigned short iLayer, unsigned long iInput, unsigned long iNode, su2double val_gradient);
+  su2double GetWeight(unsigned short iLayer, unsigned long iInput, unsigned long iNode);
+
+  su2double GetTotal_Loss(void);
+
+  void SetTotal_SSE(su2double val_sse);
+
 };
 
 /*!
@@ -11315,8 +11689,15 @@ private:
   su2double Total_Sens_Temp;    /*!< \brief Total farfield sensitivity to temperature. */
   su2double Total_Sens_BPress;    /*!< \brief Total sensitivity to outlet pressure. */
   su2double ObjFunc_Value;        /*!< \brief Value of the objective function. */
+  su2double *Total_Sens_Beta_Fiml; /*!< \brief Value of the sensitivity to fiml correction at each point JRH 04192017. */
   su2double Mach, Alpha, Beta, Pressure, Temperature;
+  su2double *Val_Beta_Fiml;     /*!< \brief Value of any beta_fiml variables - JRH 04192017*/
+  su2double *Local_Sens_Beta_Fiml; /*!< \brief Value of any beta_fiml gradients - JRH 09122017*/
+  //map<unsigned long,unsigned long> Global2Local; /*!< \brief Map to store global to local transformation JRH 05102017*/
+  //map<unsigned long,unsigned long>::const_iterator MI; /*!< \brief Map to store global to local transformation JRH 05102017*/
   unsigned long nMarker;        /*!< \brief Total number of markers using the grid information. */
+  unsigned long Fiml_Skip_Index; /*!< \brief Number of indices to skip for MPI process to map fiml varibles to correct node JRH 05102017*/
+  unsigned long nDV_total; /*!< \brief Total number of design variables - used by destructor JRH 05172017 */
   
 public:
   
@@ -11355,6 +11736,9 @@ public:
    */
   void RegisterSolution(CGeometry *geometry, CConfig *config);
   
+  void RegisterNNSolution(CGeometry *geometry, CConfig *config); //JRH 05052018
+  void ExtractNNAdjoint(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Performs the preprocessing of the adjoint AD-based solver.
    *        Registers all necessary variables that are output variables on the tape.
@@ -11459,6 +11843,25 @@ public:
    */
   su2double GetCSensitivity(unsigned short val_marker, unsigned long val_vertex);
   
+  /*!
+   * \brief Retrieve the value of beta_fiml at iPoint
+   * \param[in] iPoint - Index of node
+   * \return Value of beta_fiml at that node
+   */
+  su2double GetBetaFiml(unsigned long iPoint);
+
+  /*!
+   * \brief Retrieve the value of beta_fiml_grad at iPoint
+   * \param[in] iPoint - Index of node
+   * \return Value of beta_fiml_grad at that node
+   */
+  su2double GetBetaFimlGrad(unsigned long iPoint);
+
+  /*!
+   * \brief Write Beta Fiml Gradient in same order as design variables
+   */
+  void WriteBetaFimlGrad(void);
+
   /*!
    * \brief Prepare the solver for a new recording.
    * \param[in] kind_recording - Kind of AD recording.

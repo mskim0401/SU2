@@ -51,6 +51,8 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
   bool disc_adj = config->GetDiscrete_Adjoint();
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
 
+  bool fiml = (disc_adj && (config->GetKind_Turb_Model() == SA_FIML)); //JRH 05032017
+
   char cstr[200], buffer[50];
   string filename, fieldname;
     
@@ -140,7 +142,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
   /*--- Open Paraview ASCII file and write the header. ---*/
   ofstream Paraview_File;
   Paraview_File.open(cstr, ios::out);
-  Paraview_File.precision(6);
+  Paraview_File.precision(12); // Changed from 6 -> 12 JRH 07102017
   Paraview_File << "# vtk DataFile Version 3.0\n";
   Paraview_File << "vtk output\n";
   Paraview_File << "ASCII\n";
@@ -692,6 +694,19 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       }
       VarCounter++;
       
+      if (config->GetKind_Turb_Model() == SA_FIML) { //JRH 11242017
+    	  Paraview_File << "\nSCALARS Beta_Fiml float 1\n";
+		  Paraview_File << "LOOKUP_TABLE default\n";
+
+		  for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+			if (! surf_sol) {
+			  /*--- Loop over the vars/residuals and write the values to file ---*/
+			  Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+			}
+		  }
+		  VarCounter++;
+      }
+
     }
     
     if (( Kind_Solver == ADJ_EULER         ) ||
@@ -753,6 +768,31 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
         }
         VarCounter++;
       }
+
+      if (fiml) {
+    	  cout << "JRH Debugging - in output_paraview.cpp - Beginning to write beta_fiml to paraview file VarCounter = " << VarCounter << endl;
+          Paraview_File << "\nSCALARS beta_fiml float 1\n";
+          Paraview_File << "LOOKUP_TABLE default\n";
+
+          for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+            if (! surf_sol) {
+              Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+            }
+          }
+          VarCounter++;
+
+          cout << "JRH Debugging - in output_paraview.cpp - Beginning to write beta_fiml_grad to paraview file VarCounter = " << VarCounter << endl;
+          Paraview_File << "\nSCALARS beta_fiml_grad float 1\n";
+          Paraview_File << "LOOKUP_TABLE default\n";
+
+          for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+            if (! surf_sol) {
+              Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+            }
+          }
+          VarCounter++;
+      }
+
     }
 
     if (Kind_Solver == FEM_ELASTICITY) {

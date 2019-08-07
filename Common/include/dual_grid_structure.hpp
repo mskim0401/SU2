@@ -171,9 +171,10 @@ private:
   unsigned long GlobalIndex;          /*!< \brief Global index in the parallel simulation. */
   unsigned short nNeighbor;           /*!< \brief Number of neighbors. */
   bool Flip_Orientation;              /*!< \brief Flip the orientation of the normal. */
+  su2double beta_fiml; 	//JRH 03282018 - Variable to store fiml correction accessible by geometry class
 
 public:
-	
+	//su2double beta_fiml;
 	/*! 
 	 * \brief Constructor of the class. 
 	 * \param[in] val_nDim - Number of dimensions of the problem.
@@ -212,6 +213,10 @@ public:
 	 */
 	void SetDomain(bool val_domain);	
 	
+	//JRH 03282018 - Functions to get/return fiml correction from CGeometry class
+	void SetBetaFiml(su2double val_beta_fiml);
+	su2double GetBetaFiml(void);
+
 	/*! 
 	 * \brief For parallel computation, its indicates if a point must be computed or not.
 	 * \return <code>TRUE</code> if the node belong to the physical domain; otherwise <code>FALSE</code>.
