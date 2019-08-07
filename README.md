@@ -1,3 +1,20 @@
+
+-----------------------------------------------------------
+  SU2 Field Inversion and Machine Learning (FIML) Development Branch  
+-----------------------------------------------------------
+
+Branch of SU2 v5.0 to support research on Field Inversion and Machine Learning. FIML modifications performed by myself (Jon Holland), and results are documented on this ResearchGate Page: https://www.researchgate.net/profile/Jonathan_Holland5
+
+This branch is not stable, development of FIML capabilities in SU2 is ongoing. Development was performed to support my dissertation research. I intend to include test cases for FIML as well as a short tutorial in the near future. If interested in using SU2 for FIML, please message me.
+
+A presentation about this effort was presented at the 110th NIA CFD seminar, recording and slides available here: http://ossanworld.com/hiroakinishikawa/niacfds/
+
+Many thanks to all of the SU2 developers!
+
+-Jon Holland
+
+The following is readme provided by the SU2 developers:
+
 -----------------------------------------------------------
   SU2 (ver. 5.0.0 "Raven"): The Open-Source CFD Code
 -----------------------------------------------------------
