@@ -61,3 +61,12 @@ bin/
 # ignore running directories
 jon_cases
 TestCases
+
+# ignore miscellaneous
+nn_weights.dat
+rae2822*
+history_project.dat
+*.odt
+*.ods
+job.sub
+iterate.dat
