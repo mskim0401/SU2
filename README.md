@@ -23,26 +23,26 @@ The problem definition is largely the same as for shape optimization problems wi
 
 The "SA_FIML" turbulence model option specifies that we are performing a FIML problem (Classic, Embedded, or Direct). This is a modified "SA" model with a correction to the right hand side of the turbulence equation.
 
-% Specify turbulent model (NONE, SA, SA_NEG, SST, SA_FIML)
-KIND_TURB_MODEL= SA_FIML
+% Specify turbulent model (NONE, SA, SA_NEG, SST, SA_FIML) <br />
+KIND_TURB_MODEL= SA_FIML <br />
 
-There are several added objective functions including: INVERSE_DESIGN_PRESSURE_FIML, INVERSE_DESIGN_LIFT, INVERSE_DESIGN_LIFT_FIML, INVERSE_DESIGN_DRAG, INVERSE_DESIGN_DRAG_FIML. The INVERSE_* indicates that the user will specify a TARGET_C* value which is the higher fidelity data we want our turbulence model to be corrected to match. The *_FIML objective functions include a regularization parameter that penalizes overly intrusive corrections to the turbulence model.
+There are several added objective functions including: INVERSE_DESIGN_PRESSURE_FIML, INVERSE_DESIGN_LIFT, INVERSE_DESIGN_LIFT_FIML, INVERSE_DESIGN_DRAG, INVERSE_DESIGN_DRAG_FIML. The INVERSE_* indicates that the user will specify a TARGET_C* value which is the higher fidelity data we want our turbulence model to be corrected to match. The *_FIML objective functions include a regularization parameter that penalizes overly intrusive corrections to the turbulence model. <br />
 OBJECTIVE_FUNCTION= INVERSE_DESIGN_LIFT_FIML
 
 FIML cases are restricted to SU2 for now. FIML-Classic design variable initialization requires SU2 format grid.
-% Mesh input file format (SU2, CGNS, NETCDF_ASCII)
-MESH_FORMAT= SU2
+% Mesh input file format (SU2, CGNS, NETCDF_ASCII)<br />
+MESH_FORMAT= SU2<br />
 
 
-This is another flag to indicate that we are doing a FIML problem, so set DV_KIND to "FIML" for all FIML types (Classic, Embedded, and Direct). For all FIML cases the meaning of DV_PARAM and DV_VALUE has changed as it would be impossible to write the starting value of all the design variables by hand. (FIML problems are very high dimensional / thousands of design variables). For FIML-Classic this sets the value of the correction at every point, so DV_VALUE= 0.0 would be no turbulent production (not recommended), and DV_VALUE=1.0 would be the baseline SA model (no correction, recommended starting point).
-% Kind of deformation (FFD_SETTING, FFD_CONTROL_POINT_2D, FFD_CAMBER_2D, FFD_THICKNESS_2D,
-%                      HICKS_HENNE, PARABOLIC,
-%                      NACA_4DIGITS, DISPLACEMENT, ROTATION, FFD_CONTROL_POINT,
-%                      FFD_NACELLE, FFD_TWIST, FFD_ROTATION,
-%                      FFD_CAMBER, FFD_THICKNESS, SURFACE_FILE, FIML)
-DV_KIND= FIML
-DV_PARAM= ( 1.0 )
-DV_VALUE= 1.0
+This is another flag to indicate that we are doing a FIML problem, so set DV_KIND to "FIML" for all FIML types (Classic, Embedded, and Direct). For all FIML cases the meaning of DV_PARAM and DV_VALUE has changed as it would be impossible to write the starting value of all the design variables by hand. (FIML problems are very high dimensional / thousands of design variables). For FIML-Classic this sets the value of the correction at every point, so DV_VALUE= 0.0 would be no turbulent production (not recommended), and DV_VALUE=1.0 would be the baseline SA model (no correction, recommended starting point).<br />
+% Kind of deformation (FFD_SETTING, FFD_CONTROL_POINT_2D, FFD_CAMBER_2D, FFD_THICKNESS_2D,<br />
+%                      HICKS_HENNE, PARABOLIC,<br />
+%                      NACA_4DIGITS, DISPLACEMENT, ROTATION, FFD_CONTROL_POINT,<br />
+%                      FFD_NACELLE, FFD_TWIST, FFD_ROTATION,<br />
+%                      FFD_CAMBER, FFD_THICKNESS, SURFACE_FILE, FIML)<br />
+DV_KIND= FIML<br />
+DV_PARAM= ( 1.0 )<br />
+DV_VALUE= 1.0<br />
 
 Objective function definition is the same as standard SU2 with a scaling factor. Note that for FIML-Classic and Embedded the gradients are extremely small (becuase changing the production term at any single point in the domain only has a small influence on the objective function). Some of the SciPy optimizers (L-BFGS-B and BFGS for example) take a unit step in the descent direction. For very small gradients this is not a substantial step and will result in no change of the objective function unless the objective function is scaled properly. This will be problem dependent, but scale factors of 1.0E16 was not uncommon for FIML-Classic cases. Essentially the scale factor should be chosen to have a small, but significant first step in the descent direction. In practice, if the largest gradients were of the order 1.0E-17, then an objective function scale factor of 1.0E16 typically worked well. The same is true for FIML-Embedded. For FIML-Direct the scale factors were much smaller, on the order of 1.0E-2 depending on the chosen neural network structure and the test case.
 OPT_OBJECTIVE= INVERSE_DESIGN_LIFT_FIML * 1.0E-2
