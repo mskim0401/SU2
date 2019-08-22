@@ -22,6 +22,7 @@ Overview of Modifications to the Configuration File for FIML Problems
 The problem definition is largely the same as for shape optimization problems with the autodifferentiated discrete adjoint solver. In the FIML problem, the design variables have been re-defined. For FIML-Classic, the design variables are a correction to the production term on the turbulence model. For FIML-Embedded, the design variables are a target correction field that a neural network is then trained to match. For FIML-Direct, the design variables are the weights of the neural network. The problem definition is still controled by the *.cfg file with some additional options, and the solution is started and controlled by the shape_optimization.py script. The user should be familiar with SU2 shape optimization problems before attempting a FIML case. The primary changes to the SU2 config file options are listed below. This is not a comprehensive list:
 
 The "SA_FIML" turbulence model option specifies that we are performing a FIML problem (Classic, Embedded, or Direct). This is a modified "SA" model with a correction to the right hand side of the turbulence equation.
+
 % Specify turbulent model (NONE, SA, SA_NEG, SST, SA_FIML)
 KIND_TURB_MODEL= SA_FIML
 
