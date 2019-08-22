@@ -44,81 +44,81 @@ DV_KIND= FIML<br />
 DV_PARAM= ( 1.0 )<br />
 DV_VALUE= 1.0<br />
 
-Objective function definition is the same as standard SU2 with a scaling factor. Note that for FIML-Classic and Embedded the gradients are extremely small (becuase changing the production term at any single point in the domain only has a small influence on the objective function). Some of the SciPy optimizers (L-BFGS-B and BFGS for example) take a unit step in the descent direction. For very small gradients this is not a substantial step and will result in no change of the objective function unless the objective function is scaled properly. This will be problem dependent, but scale factors of 1.0E16 was not uncommon for FIML-Classic cases. Essentially the scale factor should be chosen to have a small, but significant first step in the descent direction. In practice, if the largest gradients were of the order 1.0E-17, then an objective function scale factor of 1.0E16 typically worked well. The same is true for FIML-Embedded. For FIML-Direct the scale factors were much smaller, on the order of 1.0E-2 depending on the chosen neural network structure and the test case.
-OPT_OBJECTIVE= INVERSE_DESIGN_LIFT_FIML * 1.0E-2
+Objective function definition is the same as standard SU2 with a scaling factor. Note that for FIML-Classic and Embedded the gradients are extremely small (becuase changing the production term at any single point in the domain only has a small influence on the objective function). Some of the SciPy optimizers (L-BFGS-B and BFGS for example) take a unit step in the descent direction. For very small gradients this is not a substantial step and will result in no change of the objective function unless the objective function is scaled properly. This will be problem dependent, but scale factors of 1.0E16 was not uncommon for FIML-Classic cases. Essentially the scale factor should be chosen to have a small, but significant first step in the descent direction. In practice, if the largest gradients were of the order 1.0E-17, then an objective function scale factor of 1.0E16 typically worked well. The same is true for FIML-Embedded. For FIML-Direct the scale factors were much smaller, on the order of 1.0E-2 depending on the chosen neural network structure and the test case.<br />
+OPT_OBJECTIVE= INVERSE_DESIGN_LIFT_FIML * 1.0E-2<br />
 
-Again, for FIML cases these parameters set limits for all of the design variables with a single number:
-OPT_CONSTRAINT= NONE
-OPT_BOUND_UPPER = 2.0
-OPT_BOUND_LOWER = -2.0
-DEFINITION_DV= ( 103, 1.0 | airfoil | 1.0 )
+Again, for FIML cases these parameters set limits for all of the design variables with a single number:<br />
+OPT_CONSTRAINT= NONE<br />
+OPT_BOUND_UPPER = 2.0<br />
+OPT_BOUND_LOWER = -2.0<br />
+DEFINITION_DV= ( 103, 1.0 | airfoil | 1.0 )<br />
 
-This parameter has to be set for FIML problems. It is the value defined in the SU2 grid file, and should be copied into the config file. This is a hack that I'm not really happy about, but it works. It is required to tell the shape_optimization.py script how many design variables we are using so that it can initialize the starting value of the deisgn variable vector. Note that NPOIN= 59400 means there are 59400 design variables for the FIML-Classic and FIML-Embedded problems. For FIML-Direct the number of design variables is determined by the chosen structure of the neural network. Again, NPOIN must be copied from the SU2 grid file.
-NPOIN= 59400
+This parameter has to be set for FIML problems. It is the value defined in the SU2 grid file, and should be copied into the config file. This is a hack that I'm not really happy about, but it works. It is required to tell the shape_optimization.py script how many design variables we are using so that it can initialize the starting value of the deisgn variable vector. Note that NPOIN= 59400 means there are 59400 design variables for the FIML-Classic and FIML-Embedded problems. For FIML-Direct the number of design variables is determined by the chosen structure of the neural network. Again, NPOIN must be copied from the SU2 grid file.<br />
+NPOIN= 59400<br />
 
-This sets the scale factor for the regularization portion of the objective function, only needs to be set when using the *_FIML objective functions (that have the regularization term included)
-LAMBDA_FIML = 1.0E-4
+This sets the scale factor for the regularization portion of the objective function, only needs to be set when using the *_FIML objective functions (that have the regularization term included)<br />
+LAMBDA_FIML = 1.0E-4<br />
 
-This sets the target lift coefficient (lift coefficient we want our augmented turbulence model to match). Also have TARGET_INVERSE_CD and TARGET_INVERSE_CP available
-TARGET_INVERSE_CL = 1.0546
+This sets the target lift coefficient (lift coefficient we want our augmented turbulence model to match). Also have TARGET_INVERSE_CD and TARGET_INVERSE_CP available<br />
+TARGET_INVERSE_CL = 1.0546<br />
 
-This tells SU2 that we are doing either FIML-Embedded or FIML-Direct and therefore will be using the neural network portion of the code in solver_direct_turbulent.cpp. Defaults to "NO" for either FIML-Classic or no FIML cases.
-TRAIN_NN= YES
+This tells SU2 that we are doing either FIML-Embedded or FIML-Direct and therefore will be using the neural network portion of the code in solver_direct_turbulent.cpp. Defaults to "NO" for either FIML-Classic or no FIML cases.<br />
+TRAIN_NN= YES<br />
 
-Set to "BACKPROP" for FIML-Embedded problems, or "WEIGHTS" for FIML-Direct.
-KIND_TRAIN_NN= WEIGHTS
+Set to "BACKPROP" for FIML-Embedded problems, or "WEIGHTS" for FIML-Direct.<br />
+KIND_TRAIN_NN= WEIGHTS<br />
 
-Required for FIML Embedded and Direct problems, sets the number of neurons in the hidden layers of the network
-N_NEURONS= 20
+Required for FIML Embedded and Direct problems, sets the number of neurons in the hidden layers of the network<br />
+N_NEURONS= 20<br />
 
-Sets the scaling for the inputs to the neural network. Options are NO_SCALE, MIN_MAX, Z_SCALE, Q_TRANSFORM, BOX_COX. BOX_COX is recommended, but parameters are hard-coded for now. Q_TRANSFORM applies the inverse CDF of a normal distribution and may be the most robust but is substantially more involved than the Box-Cox scaling. Note that the Box-Cox scaling parameters were calibrated for the S809 test case and may not be optimal for other cases. Input scaling can dramatically affect the performance for FIML-Embedded and FIML-Direct as there are HUGE outliers in the (unscaled) chosen neural network inputs that must be properly mitigated or the convergence of the algorithms is affected.
-KIND_NN_SCALING= BOX_COX
+Sets the scaling for the inputs to the neural network. Options are NO_SCALE, MIN_MAX, Z_SCALE, Q_TRANSFORM, BOX_COX. BOX_COX is recommended, but parameters are hard-coded for now. Q_TRANSFORM applies the inverse CDF of a normal distribution and may be the most robust but is substantially more involved than the Box-Cox scaling. Note that the Box-Cox scaling parameters were calibrated for the S809 test case and may not be optimal for other cases. Input scaling can dramatically affect the performance for FIML-Embedded and FIML-Direct as there are HUGE outliers in the (unscaled) chosen neural network inputs that must be properly mitigated or the convergence of the algorithms is affected.<br />
+KIND_NN_SCALING= BOX_COX<br />
 
-Only required for Q_TRANSFORM scaling, sets the number of bins for the CDF estimate. In practice results do not appear to be senstive to this value, typically used 10 or 20 bins.
-N_BINS= 10
+Only required for Q_TRANSFORM scaling, sets the number of bins for the CDF estimate. In practice results do not appear to be senstive to this value, typically used 10 or 20 bins.<br />
+N_BINS= 10<br />
 
-Only used in FIML-Embedded, and it sets the learning rate for the backpropagation algorithm.
-LEARNING_RATE= 0.01
+Only used in FIML-Embedded, and it sets the learning rate for the backpropagation algorithm.<br />
+LEARNING_RATE= 0.01<br />
 
 This is very confusing I know, but LEARN_RATE sets the step size for the STEEPJ optimizer option. STEEPJ option (set by shape_optimization.py) will take a step in the steepest descent direction of size LEARN_RATE. This is a very inefficient optimizer, but was useful for testing.
-%This one is for STEEPJ
-LEARN_RATE= 0.01
+%This one is for STEEPJ<br />
+LEARN_RATE= 0.01<br />
 
-This parameter sets the number of iterations that should be performed by the flow solver prior to using the neural network for either FIML-Embedded or FIML-Direct. In practice, this should be the smallest number of iterations that doesn't blow up the flow solver. If it is too low the neural network can output large corrections in the initial iterations which can cause the flow solver to not converge. 1000 worked well for the S809 cases, but could be lower or higher depending on the problem.
-ITER_START_NN= 1000
+This parameter sets the number of iterations that should be performed by the flow solver prior to using the neural network for either FIML-Embedded or FIML-Direct. In practice, this should be the smallest number of iterations that doesn't blow up the flow solver. If it is too low the neural network can output large corrections in the initial iterations which can cause the flow solver to not converge. 1000 worked well for the S809 cases, but could be lower or higher depending on the problem.<br />
+ITER_START_NN= 1000<br />
 
-This sets the number of backpropagation epochs (iterations) that should be done per flow solver. This feature is almost completely untested so use with caution. All cases so far have used NUM_EPOCH= 1
-NUM_EPOCH= 1
+This sets the number of backpropagation epochs (iterations) that should be done per flow solver. This feature is almost completely untested so use with caution. All cases so far have used NUM_EPOCH= 1<br />
+NUM_EPOCH= 1<br />
 
-This parameter sets the number of hidden layers in the neural network. Not tested for networks with more than 3 hidden layers (N_HIDDEN_LAYERS= 3)
-N_HIDDEN_LAYERS= 3
+This parameter sets the number of hidden layers in the neural network. Not tested for networks with more than 3 hidden layers (N_HIDDEN_LAYERS= 3)<br />
+N_HIDDEN_LAYERS= 3<br />
 
-This sets whether we should filter out points in the domain that we don't think are relevant to the problem. This limits the dimensionality of the problem and potentially can improve convergence of FIML-Embedded and FIML-Direct. Filter parameters are hard-coded and calibrated to the S809 airfoil case.
-FILTER_SHIELD= YES
+This sets whether we should filter out points in the domain that we don't think are relevant to the problem. This limits the dimensionality of the problem and potentially can improve convergence of FIML-Embedded and FIML-Direct. Filter parameters are hard-coded and calibrated to the S809 airfoil case.<br />
+FILTER_SHIELD= YES<br />
 
-Set to YES for multi-case FIML-Direct problems with different meshes. This feature still in development, but has worked.
-MULTI_MESH= NO
+Set to YES for multi-case FIML-Direct problems with different meshes. This feature still in development, but has worked.<br />
+MULTI_MESH= NO<br />
 
 
 
-Calling the modified shape_optimization.py script for FIML cases:
-Example command line to run a FIML-Classic Case with 4 processors. Note -g DISCRETE_ADJOINT must be used. Also note that depending on the problem, the limited memory BFGS option (L-BFGS-G) must be used specified by -o BFGSG. For FIML-CLassic the number of design variables is huge, and constructing the full Hessian estimate in BFGS can require huge amounts of memory and is very slow:
-shape_optimization.py -n 4 -g DISCRETE_ADJOINT -f config.cfg -o BFGSG
+Calling the modified shape_optimization.py script for FIML cases:<br />
+Example command line to run a FIML-Classic Case with 4 processors. Note -g DISCRETE_ADJOINT must be used. Also note that depending on the problem, the limited memory BFGS option (L-BFGS-G) must be used specified by -o BFGSG. For FIML-CLassic the number of design variables is huge, and constructing the full Hessian estimate in BFGS can require huge amounts of memory and is very slow:<br />
+shape_optimization.py -n 4 -g DISCRETE_ADJOINT -f config.cfg -o BFGSG<br />
 
-A case can be restarted in the usual way by adding -r project.pkl but the value of the design variable vector must also be provided by -b beta_fiml.dat. This can be found by examining the objective function convergence and selecting the beta_fiml.dat file from the best Direct solution in the convergence history. So for a restart we would enter:
-shape_optimization.py -n 4 -g DISCRETE_ADJOINT -f config.cfg -o BFGSG -r project.pkl -b beta_fiml_best.dat
+A case can be restarted in the usual way by adding -r project.pkl but the value of the design variable vector must also be provided by -b beta_fiml.dat. This can be found by examining the objective function convergence and selecting the beta_fiml.dat file from the best Direct solution in the convergence history. So for a restart we would enter:<br />
+shape_optimization.py -n 4 -g DISCRETE_ADJOINT -f config.cfg -o BFGSG -r project.pkl -b beta_fiml_best.dat<br />
 
-The -b option is also useful for initializing any FIML method design variables to a set starting value. For FIML-Classic this could be the output of a machine learned model (completing the "ML" part offline from SU2), or for FIML-Direct this could be used to initialize the neural network to a previously trained value. This is particularly useful for multi-case FIML-Direct applications as new cases can be added and training continued using the previously trained network weights. Also, sometimes the optimizers take extremely large line search steps that can cause convergence issues. If this occurs the solution can be restarted using a previous step and typically the optimizer won't follow the same path as the Hessian estimate is reset by a restart.
+The -b option is also useful for initializing any FIML method design variables to a set starting value. For FIML-Classic this could be the output of a machine learned model (completing the "ML" part offline from SU2), or for FIML-Direct this could be used to initialize the neural network to a previously trained value. This is particularly useful for multi-case FIML-Direct applications as new cases can be added and training continued using the previously trained network weights. Also, sometimes the optimizers take extremely large line search steps that can cause convergence issues. If this occurs the solution can be restarted using a previous step and typically the optimizer won't follow the same path as the Hessian estimate is reset by a restart.<br />
 
 
 -----------------------------------------------------------
   Field Inversion and Machine Learning SU2 Tutorials
 -----------------------------------------------------------
 
-Three tutorials are provided for FIML-Classic, single case FIML-Direct, and multi-case FIML-Direct. A test case for FIML-Embedded is in the works. The multi-case FIML-Direct is still in active development and will be updated in the future. THe cases were all run on UMD's Deepthought2 HPC with the submission script "job.sub". The last line on the job.sub file is the command for the shape_optimization.py script for that case. The solution files are not provided, except for the "history_project.dat" which should give an idea of the convergence history expeced by the optimizer. Note that quite a bit of disk space is required (similar to shape_optimization problems), especially for the AoA_Seven case which is running 7 DIRECT solution and 7 ADJOINT solutions for each optimizer iteration. A multi-mesh FIML-Direct case is also in development. All of the test cases use experimentally obtained lift coefficient as the higher fidelity data (TARGET_INVERSE_CL). The AoA_Seven case considers 7 separate angles of attack simultaneously to train the neural network augmentation.
+Three tutorials are provided for FIML-Classic, single case FIML-Direct, and multi-case FIML-Direct. A test case for FIML-Embedded is in the works. The multi-case FIML-Direct is still in active development and will be updated in the future. THe cases were all run on UMD's Deepthought2 HPC with the submission script "job.sub". The last line on the job.sub file is the command for the shape_optimization.py script for that case. The solution files are not provided, except for the "history_project.dat" which should give an idea of the convergence history expeced by the optimizer. Note that quite a bit of disk space is required (similar to shape_optimization problems), especially for the AoA_Seven case which is running 7 DIRECT solution and 7 ADJOINT solutions for each optimizer iteration. A multi-mesh FIML-Direct case is also in development. All of the test cases use experimentally obtained lift coefficient as the higher fidelity data (TARGET_INVERSE_CL). The AoA_Seven case considers 7 separate angles of attack simultaneously to train the neural network augmentation.<br />
 
 
-The following is readme provided by the SU2 developers:
+The following is readme provided by the SU2 developers:<br />
 
 -----------------------------------------------------------
   SU2 (ver. 5.0.0 "Raven"): The Open-Source CFD Code
