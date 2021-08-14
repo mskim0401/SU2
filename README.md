@@ -15,7 +15,7 @@ Incompressible outlet BC: SU2 v6
 Currently, only Green Gauss method can be used for the gradient calculation.<br />
 For the turbulence, SA axisymmetric source term will be added. Axisymmetric case with SST model is now available, but SST with FIML is unavailable yet.
 
-The following is readme provided by the SU2 developers:
+The following is readme provided by J. Holland:
 
 -----------------------------------------------------------
   SU2 Field Inversion and Machine Learning (FIML) Development Branch
