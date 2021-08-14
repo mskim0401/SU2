@@ -4187,328 +4187,328 @@ void CTurbSASolver::BC_ActDisk(CGeometry *geometry, CSolver **solver_container, 
 
 void CTurbSASolver::BC_Interface_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
                                           CConfig *config, unsigned short val_marker) {
-  
-  //  unsigned long iVertex, iPoint, jPoint;
-  //  unsigned short iVar, iDim;
-  //
-  //  su2double *Vector = new su2double[nDim];
-  //
-  //#ifndef HAVE_MPI
-  //
-  //  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-  //    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-  //
-  //    if (geometry->node[iPoint]->GetDomain()) {
-  //
-  //      /*--- Find the associate pair to the original node ---*/
-  //      jPoint = geometry->vertex[val_marker][iVertex]->GetDonorPoint();
-  //
-  //      if (iPoint != jPoint) {
-  //
-  //        /*--- Store the solution for both points ---*/
-  //        for (iVar = 0; iVar < nVar; iVar++) {
-  //          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
-  //          Solution_j[iVar] = node[jPoint]->GetSolution(iVar);
-  //        }
-  //
-  //        /*--- Set Conservative Variables ---*/
-  //        numerics->SetTurbVar(Solution_i, Solution_j);
-  //
-  //        /*--- Retrieve flow solution for both points ---*/
-  //        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
-  //          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
-  //          FlowPrimVar_j[iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
-  //        }
-  //
-  //        /*--- Set Flow Variables ---*/
-  //        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
-  //
-  //        /*--- Set the normal vector ---*/
-  //        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
-  //        for (iDim = 0; iDim < nDim; iDim++)
-  //          Vector[iDim] = -Vector[iDim];
-  //        numerics->SetNormal(Vector);
-  //
-  //        /*--- Add Residuals and Jacobians ---*/
-  //        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-  //        LinSysRes.AddBlock(iPoint, Residual);
-  //        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-  //
-  //      }
-  //    }
-  //  }
-  //
-  //#else
-  //
-  //  int rank = MPI::COMM_WORLD.Get_rank(), jProcessor;
-  //  su2double *Conserv_Var, *Flow_Var;
-  //  bool compute;
-  //
-  //  unsigned short Buffer_Size = nVar+solver_container[FLOW_SOL]->GetnVar();
-  //  su2double *Buffer_Send_U = new su2double [Buffer_Size];
-  //  su2double *Buffer_Receive_U = new su2double [Buffer_Size];
-  //
-  //  /*--- Do the send process, by the moment we are sending each
-  //   node individually, this must be changed ---*/
-  //  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-  //    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-  //    if (geometry->node[iPoint]->GetDomain()) {
-  //
-  //      /*--- Find the associate pair to the original node ---*/
-  //      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
-  //      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
-  //
-  //      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
-  //      else compute = true;
-  //
-  //      /*--- We only send the information that belong to other boundary ---*/
-  //      if ((jProcessor != rank) && compute) {
-  //
-  //        Conserv_Var = node[iPoint]->GetSolution();
-  //        Flow_Var = solver_container[FLOW_SOL]->node[iPoint]->GetSolution();
-  //
-  //        for (iVar = 0; iVar < nVar; iVar++)
-  //          Buffer_Send_U[iVar] = Conserv_Var[iVar];
-  //
-  //        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
-  //          Buffer_Send_U[nVar+iVar] = Flow_Var[iVar];
-  //
-  //        MPI::COMM_WORLD.Bsend(Buffer_Send_U, Buffer_Size, MPI::DOUBLE, jProcessor, iPoint);
-  //
-  //      }
-  //    }
-  //  }
-  //
-  //  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-  //
-  //    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-  //
-  //    if (geometry->node[iPoint]->GetDomain()) {
-  //
-  //      /*--- Find the associate pair to the original node ---*/
-  //      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
-  //      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
-  //
-  //      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
-  //      else compute = true;
-  //
-  //      if (compute) {
-  //
-  //        /*--- We only receive the information that belong to other boundary ---*/
-  //        if (jProcessor != rank) {
-  //          MPI::COMM_WORLD.Recv(Buffer_Receive_U, Buffer_Size, MPI::DOUBLE, jProcessor, jPoint);
-  //        }
-  //        else {
-  //
-  //          for (iVar = 0; iVar < nVar; iVar++)
-  //            Buffer_Receive_U[iVar] = node[jPoint]->GetSolution(iVar);
-  //
-  //          for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
-  //            Buffer_Send_U[nVar+iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
-  //
-  //        }
-  //
-  //        /*--- Store the solution for both points ---*/
-  //        for (iVar = 0; iVar < nVar; iVar++) {
-  //          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
-  //          Solution_j[iVar] = Buffer_Receive_U[iVar];
-  //        }
-  //
-  //        /*--- Set Turbulent Variables ---*/
-  //        numerics->SetTurbVar(Solution_i, Solution_j);
-  //
-  //        /*--- Retrieve flow solution for both points ---*/
-  //        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
-  //          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
-  //          FlowPrimVar_j[iVar] = Buffer_Receive_U[nVar + iVar];
-  //        }
-  //
-  //        /*--- Set Flow Variables ---*/
-  //        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
-  //
-  //        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
-  //        for (iDim = 0; iDim < nDim; iDim++)
-  //          Vector[iDim] = -Vector[iDim];
-  //        numerics->SetNormal(Vector);
-  //
-  //        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-  //        LinSysRes.AddBlock(iPoint, Residual);
-  //        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-  //
-  //      }
-  //    }
-  //  }
-  //
-  //  delete[] Buffer_Send_U;
-  //  delete[] Buffer_Receive_U;
-  //
-  //#endif
-  //
-  //  delete[] Vector;
-  //
+//
+//  unsigned long iVertex, iPoint, jPoint;
+//  unsigned short iVar, iDim;
+//
+//  su2double *Vector = new su2double[nDim];
+//
+//#ifndef HAVE_MPI
+//
+//  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+//    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+//
+//    if (geometry->node[iPoint]->GetDomain()) {
+//
+//      /*--- Find the associate pair to the original node ---*/
+//      jPoint = geometry->vertex[val_marker][iVertex]->GetDonorPoint();
+//
+//      if (iPoint != jPoint) {
+//
+//        /*--- Store the solution for both points ---*/
+//        for (iVar = 0; iVar < nVar; iVar++) {
+//          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
+//          Solution_j[iVar] = node[jPoint]->GetSolution(iVar);
+//        }
+//
+//        /*--- Set Conservative Variables ---*/
+//        numerics->SetTurbVar(Solution_i, Solution_j);
+//
+//        /*--- Retrieve flow solution for both points ---*/
+//        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
+//          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
+//          FlowPrimVar_j[iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
+//        }
+//
+//        /*--- Set Flow Variables ---*/
+//        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
+//
+//        /*--- Set the normal vector ---*/
+//        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
+//        for (iDim = 0; iDim < nDim; iDim++)
+//          Vector[iDim] = -Vector[iDim];
+//        numerics->SetNormal(Vector);
+//
+//        /*--- Add Residuals and Jacobians ---*/
+//        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+//        LinSysRes.AddBlock(iPoint, Residual);
+//        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+//
+//      }
+//    }
+//  }
+//
+//#else
+//
+//  int rank = MPI::COMM_WORLD.Get_rank(), jProcessor;
+//  su2double *Conserv_Var, *Flow_Var;
+//  bool compute;
+//
+//  unsigned short Buffer_Size = nVar+solver_container[FLOW_SOL]->GetnVar();
+//  su2double *Buffer_Send_U = new su2double [Buffer_Size];
+//  su2double *Buffer_Receive_U = new su2double [Buffer_Size];
+//
+//  /*--- Do the send process, by the moment we are sending each
+//   node individually, this must be changed ---*/
+//  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+//    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+//    if (geometry->node[iPoint]->GetDomain()) {
+//
+//      /*--- Find the associate pair to the original node ---*/
+//      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
+//      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
+//
+//      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
+//      else compute = true;
+//
+//      /*--- We only send the information that belong to other boundary ---*/
+//      if ((jProcessor != rank) && compute) {
+//
+//        Conserv_Var = node[iPoint]->GetSolution();
+//        Flow_Var = solver_container[FLOW_SOL]->node[iPoint]->GetSolution();
+//
+//        for (iVar = 0; iVar < nVar; iVar++)
+//          Buffer_Send_U[iVar] = Conserv_Var[iVar];
+//
+//        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
+//          Buffer_Send_U[nVar+iVar] = Flow_Var[iVar];
+//
+//        MPI::COMM_WORLD.Bsend(Buffer_Send_U, Buffer_Size, MPI::DOUBLE, jProcessor, iPoint);
+//
+//      }
+//    }
+//  }
+//
+//  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+//
+//    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+//
+//    if (geometry->node[iPoint]->GetDomain()) {
+//
+//      /*--- Find the associate pair to the original node ---*/
+//      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
+//      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
+//
+//      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
+//      else compute = true;
+//
+//      if (compute) {
+//
+//        /*--- We only receive the information that belong to other boundary ---*/
+//        if (jProcessor != rank) {
+//          MPI::COMM_WORLD.Recv(Buffer_Receive_U, Buffer_Size, MPI::DOUBLE, jProcessor, jPoint);
+//        }
+//        else {
+//
+//          for (iVar = 0; iVar < nVar; iVar++)
+//            Buffer_Receive_U[iVar] = node[jPoint]->GetSolution(iVar);
+//
+//          for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
+//            Buffer_Send_U[nVar+iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
+//
+//        }
+//
+//        /*--- Store the solution for both points ---*/
+//        for (iVar = 0; iVar < nVar; iVar++) {
+//          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
+//          Solution_j[iVar] = Buffer_Receive_U[iVar];
+//        }
+//
+//        /*--- Set Turbulent Variables ---*/
+//        numerics->SetTurbVar(Solution_i, Solution_j);
+//
+//        /*--- Retrieve flow solution for both points ---*/
+//        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
+//          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
+//          FlowPrimVar_j[iVar] = Buffer_Receive_U[nVar + iVar];
+//        }
+//
+//        /*--- Set Flow Variables ---*/
+//        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
+//
+//        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
+//        for (iDim = 0; iDim < nDim; iDim++)
+//          Vector[iDim] = -Vector[iDim];
+//        numerics->SetNormal(Vector);
+//
+//        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+//        LinSysRes.AddBlock(iPoint, Residual);
+//        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+//
+//      }
+//    }
+//  }
+//
+//  delete[] Buffer_Send_U;
+//  delete[] Buffer_Receive_U;
+//
+//#endif
+//
+//  delete[] Vector;
+//
 }
 
 void CTurbSASolver::BC_NearField_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
                                           CConfig *config, unsigned short val_marker) {
-  
-  //  unsigned long iVertex, iPoint, jPoint;
-  //  unsigned short iVar, iDim;
-  //
-  //  su2double *Vector = new su2double[nDim];
-  //
-  //#ifndef HAVE_MPI
-  //
-  //  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-  //    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-  //
-  //    if (geometry->node[iPoint]->GetDomain()) {
-  //
-  //      /*--- Find the associate pair to the original node ---*/
-  //      jPoint = geometry->vertex[val_marker][iVertex]->GetDonorPoint();
-  //
-  //      if (iPoint != jPoint) {
-  //
-  //        /*--- Store the solution for both points ---*/
-  //        for (iVar = 0; iVar < nVar; iVar++) {
-  //          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
-  //          Solution_j[iVar] = node[jPoint]->GetSolution(iVar);
-  //        }
-  //
-  //        /*--- Set Conservative Variables ---*/
-  //        numerics->SetTurbVar(Solution_i, Solution_j);
-  //
-  //        /*--- Retrieve flow solution for both points ---*/
-  //        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
-  //          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
-  //          FlowPrimVar_j[iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
-  //        }
-  //
-  //        /*--- Set Flow Variables ---*/
-  //        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
-  //
-  //        /*--- Set the normal vector ---*/
-  //        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
-  //        for (iDim = 0; iDim < nDim; iDim++)
-  //          Vector[iDim] = -Vector[iDim];
-  //        numerics->SetNormal(Vector);
-  //
-  //        /*--- Add Residuals and Jacobians ---*/
-  //        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-  //        LinSysRes.AddBlock(iPoint, Residual);
-  //        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-  //
-  //      }
-  //    }
-  //  }
-  //
-  //#else
-  //
-  //  int rank = MPI::COMM_WORLD.Get_rank(), jProcessor;
-  //  su2double *Conserv_Var, *Flow_Var;
-  //  bool compute;
-  //
-  //  unsigned short Buffer_Size = nVar+solver_container[FLOW_SOL]->GetnVar();
-  //  su2double *Buffer_Send_U = new su2double [Buffer_Size];
-  //  su2double *Buffer_Receive_U = new su2double [Buffer_Size];
-  //
-  //  /*--- Do the send process, by the moment we are sending each
-  //   node individually, this must be changed ---*/
-  //  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-  //    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-  //    if (geometry->node[iPoint]->GetDomain()) {
-  //
-  //      /*--- Find the associate pair to the original node ---*/
-  //      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
-  //      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
-  //
-  //      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
-  //      else compute = true;
-  //
-  //      /*--- We only send the information that belong to other boundary ---*/
-  //      if ((jProcessor != rank) && compute) {
-  //
-  //        Conserv_Var = node[iPoint]->GetSolution();
-  //        Flow_Var = solver_container[FLOW_SOL]->node[iPoint]->GetSolution();
-  //
-  //        for (iVar = 0; iVar < nVar; iVar++)
-  //          Buffer_Send_U[iVar] = Conserv_Var[iVar];
-  //
-  //        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
-  //          Buffer_Send_U[nVar+iVar] = Flow_Var[iVar];
-  //
-  //        MPI::COMM_WORLD.Bsend(Buffer_Send_U, Buffer_Size, MPI::DOUBLE, jProcessor, iPoint);
-  //
-  //      }
-  //    }
-  //  }
-  //
-  //  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-  //
-  //    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-  //
-  //    if (geometry->node[iPoint]->GetDomain()) {
-  //
-  //      /*--- Find the associate pair to the original node ---*/
-  //      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
-  //      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
-  //
-  //      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
-  //      else compute = true;
-  //
-  //      if (compute) {
-  //
-  //        /*--- We only receive the information that belong to other boundary ---*/
-  //        if (jProcessor != rank) {
-  //          MPI::COMM_WORLD.Recv(Buffer_Receive_U, Buffer_Size, MPI::DOUBLE, jProcessor, jPoint);
-  //        }
-  //        else {
-  //
-  //          for (iVar = 0; iVar < nVar; iVar++)
-  //            Buffer_Receive_U[iVar] = node[jPoint]->GetSolution(iVar);
-  //
-  //          for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
-  //            Buffer_Send_U[nVar+iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
-  //
-  //        }
-  //
-  //        /*--- Store the solution for both points ---*/
-  //        for (iVar = 0; iVar < nVar; iVar++) {
-  //          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
-  //          Solution_j[iVar] = Buffer_Receive_U[iVar];
-  //        }
-  //
-  //        /*--- Set Turbulent Variables ---*/
-  //        numerics->SetTurbVar(Solution_i, Solution_j);
-  //
-  //        /*--- Retrieve flow solution for both points ---*/
-  //        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
-  //          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
-  //          FlowPrimVar_j[iVar] = Buffer_Receive_U[nVar + iVar];
-  //        }
-  //
-  //        /*--- Set Flow Variables ---*/
-  //        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
-  //
-  //        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
-  //        for (iDim = 0; iDim < nDim; iDim++)
-  //          Vector[iDim] = -Vector[iDim];
-  //        numerics->SetNormal(Vector);
-  //
-  //        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-  //        LinSysRes.AddBlock(iPoint, Residual);
-  //        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-  //
-  //      }
-  //    }
-  //  }
-  //
-  //  delete[] Buffer_Send_U;
-  //  delete[] Buffer_Receive_U;
-  //
-  //#endif
-  //
-  //  delete[] Vector;
-  //
+//
+//  unsigned long iVertex, iPoint, jPoint;
+//  unsigned short iVar, iDim;
+//
+//  su2double *Vector = new su2double[nDim];
+//
+//#ifndef HAVE_MPI
+//
+//  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+//    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+//
+//    if (geometry->node[iPoint]->GetDomain()) {
+//
+//      /*--- Find the associate pair to the original node ---*/
+//      jPoint = geometry->vertex[val_marker][iVertex]->GetDonorPoint();
+//
+//      if (iPoint != jPoint) {
+//
+//        /*--- Store the solution for both points ---*/
+//        for (iVar = 0; iVar < nVar; iVar++) {
+//          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
+//          Solution_j[iVar] = node[jPoint]->GetSolution(iVar);
+//        }
+//
+//        /*--- Set Conservative Variables ---*/
+//        numerics->SetTurbVar(Solution_i, Solution_j);
+//
+//        /*--- Retrieve flow solution for both points ---*/
+//        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
+//          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
+//          FlowPrimVar_j[iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
+//        }
+//
+//        /*--- Set Flow Variables ---*/
+//        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
+//
+//        /*--- Set the normal vector ---*/
+//        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
+//        for (iDim = 0; iDim < nDim; iDim++)
+//          Vector[iDim] = -Vector[iDim];
+//        numerics->SetNormal(Vector);
+//
+//        /*--- Add Residuals and Jacobians ---*/
+//        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+//        LinSysRes.AddBlock(iPoint, Residual);
+//        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+//
+//      }
+//    }
+//  }
+//
+//#else
+//
+//  int rank = MPI::COMM_WORLD.Get_rank(), jProcessor;
+//  su2double *Conserv_Var, *Flow_Var;
+//  bool compute;
+//
+//  unsigned short Buffer_Size = nVar+solver_container[FLOW_SOL]->GetnVar();
+//  su2double *Buffer_Send_U = new su2double [Buffer_Size];
+//  su2double *Buffer_Receive_U = new su2double [Buffer_Size];
+//
+//  /*--- Do the send process, by the moment we are sending each
+//   node individually, this must be changed ---*/
+//  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+//    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+//    if (geometry->node[iPoint]->GetDomain()) {
+//
+//      /*--- Find the associate pair to the original node ---*/
+//      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
+//      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
+//
+//      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
+//      else compute = true;
+//
+//      /*--- We only send the information that belong to other boundary ---*/
+//      if ((jProcessor != rank) && compute) {
+//
+//        Conserv_Var = node[iPoint]->GetSolution();
+//        Flow_Var = solver_container[FLOW_SOL]->node[iPoint]->GetSolution();
+//
+//        for (iVar = 0; iVar < nVar; iVar++)
+//          Buffer_Send_U[iVar] = Conserv_Var[iVar];
+//
+//        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
+//          Buffer_Send_U[nVar+iVar] = Flow_Var[iVar];
+//
+//        MPI::COMM_WORLD.Bsend(Buffer_Send_U, Buffer_Size, MPI::DOUBLE, jProcessor, iPoint);
+//
+//      }
+//    }
+//  }
+//
+//  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+//
+//    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+//
+//    if (geometry->node[iPoint]->GetDomain()) {
+//
+//      /*--- Find the associate pair to the original node ---*/
+//      jPoint = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[0];
+//      jProcessor = geometry->vertex[val_marker][iVertex]->GetPeriodicPointDomain()[1];
+//
+//      if ((iPoint == jPoint) && (jProcessor == rank)) compute = false;
+//      else compute = true;
+//
+//      if (compute) {
+//
+//        /*--- We only receive the information that belong to other boundary ---*/
+//        if (jProcessor != rank) {
+//          MPI::COMM_WORLD.Recv(Buffer_Receive_U, Buffer_Size, MPI::DOUBLE, jProcessor, jPoint);
+//        }
+//        else {
+//
+//          for (iVar = 0; iVar < nVar; iVar++)
+//            Buffer_Receive_U[iVar] = node[jPoint]->GetSolution(iVar);
+//
+//          for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++)
+//            Buffer_Send_U[nVar+iVar] = solver_container[FLOW_SOL]->node[jPoint]->GetSolution(iVar);
+//
+//        }
+//
+//        /*--- Store the solution for both points ---*/
+//        for (iVar = 0; iVar < nVar; iVar++) {
+//          Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
+//          Solution_j[iVar] = Buffer_Receive_U[iVar];
+//        }
+//
+//        /*--- Set Turbulent Variables ---*/
+//        numerics->SetTurbVar(Solution_i, Solution_j);
+//
+//        /*--- Retrieve flow solution for both points ---*/
+//        for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnVar(); iVar++) {
+//          FlowPrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetSolution(iVar);
+//          FlowPrimVar_j[iVar] = Buffer_Receive_U[nVar + iVar];
+//        }
+//
+//        /*--- Set Flow Variables ---*/
+//        numerics->SetConservative(FlowPrimVar_i, FlowPrimVar_j);
+//
+//        geometry->vertex[val_marker][iVertex]->GetNormal(Vector);
+//        for (iDim = 0; iDim < nDim; iDim++)
+//          Vector[iDim] = -Vector[iDim];
+//        numerics->SetNormal(Vector);
+//
+//        numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+//        LinSysRes.AddBlock(iPoint, Residual);
+//        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+//
+//      }
+//    }
+//  }
+//
+//  delete[] Buffer_Send_U;
+//  delete[] Buffer_Receive_U;
+//
+//#endif
+//
+//  delete[] Vector;
+//
 }
 
 CTurbSSTSolver::CTurbSSTSolver(void) : CTurbSolver() {
@@ -4890,7 +4890,10 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
 }
 
 void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics, CConfig *config, unsigned short iMesh) {
-  
+
+// mskim
+  bool axisymmetric = config->GetAxisymmetric();
+
   unsigned long iPoint;
   
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
@@ -4933,7 +4936,13 @@ void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     /*--- Cross diffusion ---*/
     
     numerics->SetCrossDiff(node[iPoint]->GetCrossDiff(),0.0);
-    
+
+// mskim
+    if (axisymmetric){
+    /*--- Set y coordinate ---*/
+    numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
+    }
+
     /*--- Compute the source term ---*/
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);

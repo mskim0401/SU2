@@ -467,6 +467,27 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config);
+
+
+// mskim. Add AxiAuxVar Gradient options
+  /*!
+   * \brief Compute the Green-Gauss gradient of the auxiliary variable.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
+  void SetAxiAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config);
+  
+  /*!
+   * \brief Compute the Least Squares gradient of the auxiliary variable.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetAxiAuxVar_Gradient_LS(CGeometry *geometry, CConfig *config);
+
+// Is it needed?
+//  void SetAxiAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config);
+
+// mskim-end
+
   
   /*!
    * \brief Compute the Green-Gauss gradient of the solution.
@@ -9190,8 +9211,11 @@ protected:
   su2double ACoeff, ACoeff_inc, ACoeff_old;
   bool Update_ACoeff;
   
+  // mskim, moved from CSolver class
+//  void SetAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config);
+
 public:
-  
+
   /*!
    * \brief Constructor of the class.
    */
@@ -9776,8 +9800,10 @@ protected:
   su2double ACoeff, ACoeff_inc, ACoeff_old;
   bool Update_ACoeff;
 
+  // mskim, moved from CSolver class
+//    void SetAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config);
+
 public:
-  
   /*!
    * \brief Constructor of the class.
    */

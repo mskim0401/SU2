@@ -175,8 +175,14 @@ public:
   **TransVar_Grad_j;      /*!< \brief Gradient of turbulent variables at point j. */
   su2double **TurbPsi_Grad_i,  /*!< \brief Gradient of adjoint turbulent variables at point i. */
   **TurbPsi_Grad_j;      /*!< \brief Gradient of adjoint turbulent variables at point j. */
+
   su2double *AuxVar_Grad_i,    /*!< \brief Gradient of an auxiliary variable at point i. */
-  *AuxVar_Grad_j;        /*!< \brief Gradient of an auxiliary variable at point i. */
+  *AuxVar_Grad_j;        /*!< \brief Gradient of an auxiliary variable at point j. */
+  //mskim
+  su2double **AxiAuxVar_Grad_i,    /*!< \brief Gradient of axisymmetric auxiliary variable at point i. */
+  **AxiAuxVar_Grad_j;    /*!< \brief Gradient of axisymmetric auxiliary variable at point j. */
+
+
   su2double *Coord_i,  /*!< \brief Cartesians coordinates of point i. */
   *Coord_j,      /*!< \brief Cartesians coordinates of point j. */
   *Coord_0,      /*!< \brief Cartesians coordinates of point 0 (Galerkin method, triangle). */
@@ -477,6 +483,14 @@ public:
    * \param[in] val_auxvargrad_j - Gradient of the auxiliary variable at point j.
    */
   void SetAuxVarGrad(su2double *val_auxvargrad_i, su2double *val_auxvargrad_j);
+
+// mskim
+  /*!
+   * \brief Set the gradient of the auxiliary variables.
+   * \param[in] val_auxvar_grad_i - Gradient of the axisymmetric auxiliary variable at point i.
+   * \param[in] val_auxvar_grad_j - Gradient of the axisymmetric auxiliary variable at point j.
+   */
+  void SetAxiAuxVarGrad(su2double **val_auxvar_grad_i, su2double **val_auxvar_grad_j);
   
   /*!
    * \brief Set the diffusion coefficient
@@ -4329,15 +4343,70 @@ private:
   alfa_2,
   beta_1,
   beta_2,
-  sigma_omega_1,
-  sigma_omega_2,
+// mskim  
+//  sigma_omega_1,
+//  sigma_omega_2,
+  sigma_k_1,
+  sigma_k_2,
+  sigma_w_1,
+  sigma_w_2,
+
   beta_star,
   a1;
   
   su2double CDkw_i, CDkw_j;
   
   bool incompressible;
+// mskim
+  bool axisymmetric;
   
+// mskim
+  inline void ResidualAxisymmetric(su2double alfa_blended, su2double zeta, su2double *val_residual){
+
+    if (Coord_i[1] < EPS) return;
+
+    su2double yinv, rhov, k, w;
+    su2double sigma_k_i, sigma_w_i;
+    su2double pk_axi, pw_axi, cdk_axi, cdw_axi;
+
+    yinv = 1.0/Coord_i[1];
+    rhov = Density_i*V_i[2];
+    k = TurbVar_i[0];
+    w = TurbVar_i[1];
+
+    /*--- Compute blended constants ---*/
+    sigma_k_i = F1_i*sigma_k_1+(1.0-F1_i)*sigma_k_2;
+    sigma_w_i = F1_i*sigma_w_1+(1.0-F1_i)*sigma_w_2;
+
+    /*--- Production ---*/
+    pk_axi = max(0.0,2.0/3.0*rhov*k*(2.0/zeta*(yinv*V_i[2]-PrimVar_Grad_i[2][1]-PrimVar_Grad_i[1][0])-1.0));
+    pw_axi = alfa_blended*zeta/k*pk_axi;
+
+    /*--- Convection-Diffusion ---*/
+    cdk_axi = rhov*k-(Laminar_Viscosity_i+sigma_k_i*Eddy_Viscosity_i)*TurbVar_Grad_i[0][1];
+    cdw_axi = rhov*w-(Laminar_Viscosity_i+sigma_w_i*Eddy_Viscosity_i)*TurbVar_Grad_i[1][1];
+
+	// mskim Debug dummy
+    //cout << "cdk_axi = " << cdk_axi << " in numerics_structure.hpp(before)" << endl;
+	//cout << "cdw_axi = " << cdw_axi << " in numerics_structure.hpp(before)" << endl;
+    //cout << "val_residual[0] = " << val_residual[0] << " in numerics_structure.hpp(before)" << endl;
+    //cout << "val_residual[1] = " << val_residual[1] << " in numerics_structure.hpp(before)" << endl;
+	//su2double mskim_value_0, mskim_value_1;
+	//mskim_value_0 = yinv*Volume*(pk_axi-cdk_axi);
+	//mskim_value_1 = yinv*Volume*(pw_axi-cdw_axi);
+    //cout << "mskim_value_0     = " << mskim_value_0 << " in numerics_structure.hpp(before)" << endl;
+    //cout << "mskim_value_1     = " << mskim_value_1 << " in numerics_structure.hpp(before)" << endl;
+
+    /*--- Add terms to the residuals ---*/
+    val_residual[0] += yinv*Volume*(pk_axi-cdk_axi);
+    val_residual[1] += yinv*Volume*(pw_axi-cdw_axi);
+    
+	//cout << "val_residual[0] = " << val_residual[0] << " in numerics_structure.hpp(after)" << endl;
+	//cout << "val_residual[1] = " << val_residual[1] << " in numerics_structure.hpp(after)" << endl;
+
+  }
+// mskim-end
+
 public:
   
   /*!
@@ -4623,6 +4692,21 @@ public:
  * \version 5.0.0 "Raven"
  */
 class CSourceAxisymmetric_Flow : public CNumerics {
+
+// mskim
+protected:
+  bool implicit, viscous, rans;
+  su2double yinv{0.0};
+//  su2double* val_residual = nullptr;
+//  su2double** Jacobian_i = nullptr;
+
+  /*!
+  * \brief Diffusion residual of the axisymmetric source term.
+  */
+//  void ResidualDiffusion();
+  void ResidualDiffusion(su2double *val_residual);
+// mskim-end
+
 public:
   
   /*!
@@ -4639,12 +4723,38 @@ public:
   ~CSourceAxisymmetric_Flow(void);
   
   /*!
-   * \brief Residual of the rotational frame source term.
+   * \brief Residual of the axisymmetric frame source term.
    * \param[out] val_residual - Pointer to the total residual.
    * \param[in] config - Definition of the particular problem.
    */
   void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
   
+};
+
+// mskim
+/*!
+ * \class CSourceGeneralAxisymmetric_Flow
+ * \brief Class for source term for solving axisymmetric problems for a general (non ideal) fluid.
+ * \ingroup SourceDiscr
+ * \author F. Dittmann
+ */
+ 
+class CSourceGeneralAxisymmetric_Flow final : public CSourceAxisymmetric_Flow {
+public:
+
+  using CSourceAxisymmetric_Flow::CSourceAxisymmetric_Flow;
+  /*!
+   * \brief Residual of the general axisymmetric source term.
+   * \param[in] config - Definition of the particular problem.
+   * \return Lightweight const-view of residual and Jacobian.
+   */
+
+// from CSourceAxisymmetric_Flow
+  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+
+// mskim, version 7 type
+
+// mskim-end
 };
 
 /*!

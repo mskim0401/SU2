@@ -2317,7 +2317,7 @@ void CAdjIncEulerSolver::Inviscid_Sensitivity(CGeometry *geometry, CSolver **sol
           conspsi = Beta2*Psi[0];
 
           for (iDim = 0; iDim < nDim; iDim++) conspsi += U[iDim+1]*Psi[iDim+1];
-          
+
           node[iPoint]->SetAuxVar(conspsi);
           
           /*--- Also load the auxiliary variable for first neighbors ---*/
@@ -2329,7 +2329,7 @@ void CAdjIncEulerSolver::Inviscid_Sensitivity(CGeometry *geometry, CSolver **sol
             Beta2 = solver_container[FLOW_SOL]->node[Neigh]->GetBetaInc2();
             conspsi = Beta2*Psi[0];
             for (iDim = 0; iDim < nDim; iDim++) conspsi += U[iDim+1]*Psi[iDim+1];
-            node[Neigh]->SetAuxVar(conspsi);
+			node[Neigh]->SetAuxVar(conspsi);
           }
         }
       }
@@ -2359,7 +2359,7 @@ void CAdjIncEulerSolver::Inviscid_Sensitivity(CGeometry *geometry, CSolver **sol
           ConsVar_Grad = solver_container[FLOW_SOL]->node[iPoint]->GetGradient();
           ConsPsi_Grad = node[iPoint]->GetAuxVarGradient();
           ConsPsi = node[iPoint]->GetAuxVar();
-          
+
           d_press = 0.0; grad_v = 0.0; v_gradconspsi = 0.0;
           for (iDim = 0; iDim < nDim; iDim++) {
             
@@ -4890,3 +4890,120 @@ void CAdjIncNSSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_c
   delete [] dPoRho2;
 }
 
+// mskim, moved from solver_structure.cpp (CSolver)
+//void CAdjIncEulerSolver::SetAuxVar_Surface_Gradient(CGeometry *geometry,  CConfig *config) {
+//
+//  unsigned short iDim, jDim, iNeigh, iMarker, Boundary;
+//  unsigned short nDim = geometry->GetnDim();
+//  unsigned long iPoint, jPoint, iVertex;
+//  su2double *Coord_i, *Coord_j, AuxVar_i, AuxVar_j;
+//  su2double **Smatrix, *Cvector;
+//
+//  Smatrix = new su2double* [nDim];
+//  Cvector = new su2double [nDim];
+//  for (iDim = 0; iDim < nDim; iDim++)
+//    Smatrix[iDim] = new su2double [nDim];
+//
+//  /*--- Loop over boundary markers to select those for Euler or NS walls ---*/
+//  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+//    Boundary = config->GetMarker_All_KindBC(iMarker);
+//    switch (Boundary) {
+//      case EULER_WALL:
+//      case HEAT_FLUX:
+//      case ISOTHERMAL:
+//
+//        /*--- Loop over points on the surface (Least-Squares approximation) ---*/
+//        for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
+//          iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+//          if (geometry->node[iPoint]->GetDomain()) {
+//            Coord_i = geometry->node[iPoint]->GetCoord();
+//            AuxVar_i = node[iPoint]->GetAuxVar();
+//
+//            /*--- Inizialization of variables ---*/
+//            for (iDim = 0; iDim < nDim; iDim++)
+//              Cvector[iDim] = 0.0;
+//            su2double r11 = 0.0, r12 = 0.0, r13 = 0.0, r22 = 0.0, r23 = 0.0, r23_a = 0.0, r23_b = 0.0, r33 = 0.0;
+//
+//            for (iNeigh = 0; iNeigh < geometry->node[iPoint]->GetnPoint(); iNeigh++) {
+//              jPoint = geometry->node[iPoint]->GetPoint(iNeigh);
+//              Coord_j = geometry->node[jPoint]->GetCoord();
+//              AuxVar_j = node[jPoint]->GetAuxVar();
+//              su2double weight = 0;
+//              for (iDim = 0; iDim < nDim; iDim++)
+//                weight += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
+//
+//              /*--- Sumations for entries of upper triangular matrix R ---*/
+//              r11 += (Coord_j[0]-Coord_i[0])*(Coord_j[0]-Coord_i[0])/weight;
+//              r12 += (Coord_j[0]-Coord_i[0])*(Coord_j[1]-Coord_i[1])/weight;
+//              r22 += (Coord_j[1]-Coord_i[1])*(Coord_j[1]-Coord_i[1])/weight;
+//              if (nDim == 3) {
+//                r13 += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+//                r23_a += (Coord_j[1]-Coord_i[1])*(Coord_j[2]-Coord_i[2])/weight;
+//                r23_b += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+//                r33 += (Coord_j[2]-Coord_i[2])*(Coord_j[2]-Coord_i[2])/weight;
+//            }
+//
+//              /*--- Entries of c:= transpose(A)*b ---*/
+//              for (iDim = 0; iDim < nDim; iDim++)
+//                Cvector[iDim] += (Coord_j[iDim]-Coord_i[iDim])*(AuxVar_j-AuxVar_i)/weight;
+//            }
+//
+//            /*--- Entries of upper triangular matrix R ---*/
+//            r11 = sqrt(r11);
+//            r12 = r12/r11;
+//            r22 = sqrt(r22-r12*r12);
+//            if (nDim == 3) {
+//              r13 = r13/r11;
+//              r23 = r23_a/r22 - r23_b*r12/(r11*r22);
+//              r33 = sqrt(r33-r23*r23-r13*r13);
+//            }
+//            /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
+//            if (nDim == 2) {
+//              su2double detR2 = (r11*r22)*(r11*r22);
+//              Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
+//              Smatrix[0][1] = -r11*r12/detR2;
+//              Smatrix[1][0] = Smatrix[0][1];
+//              Smatrix[1][1] = r11*r11/detR2;
+//            }
+//            else {
+//              su2double detR2 = (r11*r22*r33)*(r11*r22*r33);
+//              su2double z11, z12, z13, z22, z23, z33; // aux vars
+//              z11 = r22*r33;
+//              z12 = -r12*r33;
+//              z13 = r12*r23-r13*r22;
+//              z22 = r11*r33;
+//              z23 = -r11*r23;
+//              z33 = r11*r22;
+//              Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
+//              Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
+//              Smatrix[0][2] = (z13*z33)/detR2;
+//              Smatrix[1][0] = Smatrix[0][1];
+//              Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
+//              Smatrix[1][2] = (z23*z33)/detR2;
+//              Smatrix[2][0] = Smatrix[0][2];
+//              Smatrix[2][1] = Smatrix[1][2];
+//              Smatrix[2][2] = (z33*z33)/detR2;
+//            }
+//            /*--- Computation of the gradient: S*c ---*/
+//            su2double product;
+//            for (iDim = 0; iDim < nDim; iDim++) {
+//              product = 0.0;
+//              for (jDim = 0; jDim < nDim; jDim++)
+//                product += Smatrix[iDim][jDim]*Cvector[jDim];
+//              node[iPoint]->SetAuxVarGradient(iDim, product);
+//            }
+//          }
+//        } /*--- End of loop over surface points ---*/
+//        break;
+//      default:
+//        break;
+//    }
+//  }
+//
+//  /*--- Memory deallocation ---*/
+//  for (iDim = 0; iDim < nDim; iDim++)
+//    delete [] Smatrix[iDim];
+//  delete [] Cvector;
+//  delete [] Smatrix;
+//}
+// mskim-end

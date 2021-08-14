@@ -1311,16 +1311,30 @@ CSourcePieceWise_TurbSST::CSourcePieceWise_TurbSST(unsigned short val_nDim, unsi
                                                    CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
   
   incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
-  
+// mskim
+  axisymmetric = config->GetAxisymmetric();
+
   /*--- Closure constants ---*/
-  beta_star     = constants[6];
-  sigma_omega_1 = constants[2];
-  sigma_omega_2 = constants[3];
+// mskim  
+//  beta_star     = constants[6];
+//  sigma_omega_1 = constants[2];
+//  sigma_omega_2 = constants[3];
+//  beta_1        = constants[4];
+//  beta_2        = constants[5];
+//  alfa_1        = constants[8];
+//  alfa_2        = constants[9];
+//  a1            = constants[7];
+  sigma_k_1     = constants[0];
+  sigma_k_2     = constants[1];
+  sigma_w_1     = constants[2];
+  sigma_w_2     = constants[3];
   beta_1        = constants[4];
   beta_2        = constants[5];
+  beta_star     = constants[6];
+  a1            = constants[7];
   alfa_1        = constants[8];
   alfa_2        = constants[9];
-  a1            = constants[7];
+
 }
 
 CSourcePieceWise_TurbSST::~CSourcePieceWise_TurbSST(void) { }
@@ -1391,10 +1405,24 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
     
     val_residual[1] += (1.0 - F1_i)*CDkw_i*Volume;
     
+// mskim
+//  cout << "val_residual[0] = " << val_residual[0] << " in numerics_direct_turbulent.cpp(before)" << endl;
+//	cout << "val_residual[1] = " << val_residual[1] << " in numerics_direct_turbulent.cpp(before)" << endl;
+    /*--- Contribution due to 2D axisymmetric formulation ---*/
+    if (axisymmetric) ResidualAxisymmetric(alfa_blended,zeta,val_residual);
+
+//    cout << "val_residual[0] = " << val_residual[0] << " in numerics_direct_turbulent.cpp(after)" << endl;
+//    cout << "val_residual[1] = " << val_residual[1] << " in numerics_direct_turbulent.cpp(after)" << endl;
+
+
     /*--- Implicit part ---*/
     
-    val_Jacobian_i[0][0] = -beta_star*TurbVar_i[1]*Volume;    val_Jacobian_i[0][1] = 0.0;
-    val_Jacobian_i[1][0] = 0.0;                               val_Jacobian_i[1][1] = -2.0*beta_blended*TurbVar_i[1]*Volume;
+    val_Jacobian_i[0][0] = -beta_star*TurbVar_i[1]*Volume;
+// mskim. Bug Fix
+//    val_Jacobian_i[0][1] = 0.0;
+    val_Jacobian_i[0][1] = -beta_star*TurbVar_i[0]*Volume;
+    val_Jacobian_i[1][0] = 0.0;
+	val_Jacobian_i[1][1] = -2.0*beta_blended*TurbVar_i[1]*Volume;
   }
   
   AD::SetPreaccOut(val_residual, nVar);

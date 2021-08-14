@@ -5075,7 +5075,14 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
   bool gravity        = (config->GetGravityForce() == YES);
   bool harmonic_balance  = (config->GetUnsteady_Simulation() == HARMONIC_BALANCE);
   bool windgust       = config->GetWind_Gust();
+
+// mskim
+  const bool viscous          = config->GetViscous();
+  const bool ideal_gas        = (config->GetKind_FluidModel() == STANDARD_AIR) ||
+                                (config->GetKind_FluidModel() == IDEAL_GAS);
+  const bool rans             = (config->GetKind_Turb_Model() != NONE);
   
+
   /*--- Initialize the source residual to zero ---*/
   for (iVar = 0; iVar < nVar; iVar++) Residual[iVar] = 0.0;
   
@@ -5111,7 +5118,49 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
         for (unsigned short jVar = 0; jVar < nVar; jVar ++)
           Jacobian_i[iVar][jVar] = 0.0;
     }
-    
+
+// mskim
+    /*--- For viscous problems, we need an additional gradient. ---*/
+	if (viscous) {
+
+      for (iPoint = 0; iPoint < nPoint; iPoint++) {
+
+        su2double yCoord          = geometry->node[iPoint]->GetCoord(1);
+        su2double yVelocity       = node[iPoint]->GetVelocity(1);
+        su2double xVelocity       = node[iPoint]->GetVelocity(0);
+        su2double Total_Viscosity = node[iPoint]->GetLaminarViscosity() 
+								  + node[iPoint]->GetEddyViscosity();
+		su2double AxiAuxVar[3] = {0.0};
+
+        if (yCoord > EPS){
+          su2double nu_v_on_y = Total_Viscosity*yVelocity/yCoord;
+		  // Must be changed SetAxiAuxVar
+		  AxiAuxVar[0] = nu_v_on_y;
+		  AxiAuxVar[1] = nu_v_on_y*yVelocity;
+		  AxiAuxVar[2] = nu_v_on_y*xVelocity;
+	    }
+        /*--- Set the auxilairy variable for this node. ---*/
+        node[iPoint]->SetAxiAuxVar(AxiAuxVar);
+
+//          node[iPoint]->SetAuxVar(0, nu_v_on_y);
+//          node[iPoint]-->SetAuxVar(1, nu_v_on_y*yVelocity);
+//          node[iPoint]->SetAuxVar(2, nu_v_on_y*xVelocity);
+      }
+
+      /*--- Compute the auxiliary variable gradient with GG or WLS. ---*/
+      if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
+//        SetAuxVar_Gradient_GG(geometry, config);
+        SetAxiAuxVar_Gradient_GG(geometry, config);
+      }
+	  // mskim: Currently not work.
+      if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
+//        SetAuxVar_Gradient_LS(geometry, config);
+        SetAxiAuxVar_Gradient_LS(geometry, config);
+      }
+    }
+// mskim-end
+
+
     /*--- loop over points ---*/
     for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
       
@@ -5123,7 +5172,30 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       
       /*--- Set y coordinate ---*/
       numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
-      
+
+// mskim
+      /*--- Set primitive variables for viscous terms and/or generalised source ---*/
+      if (!ideal_gas || viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), node[iPoint]->GetPrimitive());
+
+      /*--- Set secondary variables for generalised source ---*/
+	  if (!ideal_gas) numerics->SetSecondary(node[iPoint]->GetSecondary(), node[iPoint]->GetSecondary());
+
+      if (viscous) {
+
+        /*--- Set gradient of primitive variables ---*/
+        numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
+        /*--- Set gradient of auxillary variables ---*/
+//        numerics->SetAuxVarGrad(node[iPoint]->GetAuxVarGradient(), NULL);
+        numerics->SetAxiAuxVarGrad(node[iPoint]->GetAxiAuxVarGradient(), NULL);
+
+        /*--- Set turbulence kinetic energy ---*/
+        if (rans){
+//          CVariable* turbNodes = solver_container[TURB_SOL]->GetNode();
+          numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+		}
+	  }
+// mskim-end
+
       /*--- Compute Source term Residual ---*/
       numerics->ComputeResidual(Residual, Jacobian_i, config);
       
@@ -6536,7 +6608,10 @@ void CEulerSolver::SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *config
   /*--- Loop boundary edges ---*/
   
   for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
-    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY)
+//    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY)
+// mskim, fix periodic BC bug
+    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY &&
+        config->GetMarker_All_KindBC(iMarker) != PERIODIC_BOUNDARY)
     for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
       iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
       if (geometry->node[iPoint]->GetDomain()) {

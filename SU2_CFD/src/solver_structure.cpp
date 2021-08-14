@@ -361,13 +361,13 @@ void CSolver::SetAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config) {
     
     AuxVar_i = node[iPoint]->GetAuxVar();
     AuxVar_j = node[jPoint]->GetAuxVar();
-    
+
     Normal = geometry->edge[iEdge]->GetNormal();
     AuxVar_Average =  0.5 * ( AuxVar_i + AuxVar_j);
     for (iDim = 0; iDim < nDim; iDim++) {
       Partial_Res = AuxVar_Average*Normal[iDim];
       node[iPoint]->AddAuxVarGradient(iDim, Partial_Res);
-      node[jPoint]->SubtractAuxVarGradient(iDim, Partial_Res);
+	  node[jPoint]->SubtractAuxVarGradient(iDim, Partial_Res);
     }
   }
   
@@ -394,6 +394,72 @@ void CSolver::SetAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config) {
     }
    
 }
+
+// mskim
+void CSolver::SetAxiAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config) {
+  
+  unsigned long Point = 0, iPoint = 0, jPoint = 0, iEdge, iVertex;
+  unsigned short nDim = geometry->GetnDim(), iDim, iMarker;
+  unsigned short iVar, nAxiAuxVar = 3;
+  
+  su2double *AxiAuxVar_Vertex, *AxiAuxVar_i, *AxiAuxVar_j, AxiAuxVar_Average;
+  su2double **AxiGradient, DualArea, Partial_Res, AxiGrad_Val, *Normal;
+
+  for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++)
+    node[iPoint]->SetAxiAuxVarGradientZero();    // Set Gradient to Zero
+  
+  /*--- Loop interior edges ---*/
+  
+  for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {
+    iPoint = geometry->edge[iEdge]->GetNode(0);
+    jPoint = geometry->edge[iEdge]->GetNode(1);
+    
+    AxiAuxVar_i = node[iPoint]->GetAxiAuxVar();
+    AxiAuxVar_j = node[jPoint]->GetAxiAuxVar();
+
+    Normal = geometry->edge[iEdge]->GetNormal();
+
+    for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
+      AxiAuxVar_Average =  0.5 * ( AxiAuxVar_i[iVar] + AxiAuxVar_j[iVar]);
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Partial_Res = AxiAuxVar_Average*Normal[iDim];
+        node[iPoint]->AddAxiAuxVarGradient(iVar, iDim, Partial_Res);
+  	    node[jPoint]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
+      }
+	}
+
+  }
+  
+  /*--- Loop boundary edges ---*/
+  
+  for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++)
+    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY)
+    for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+      Point = geometry->vertex[iMarker][iVertex]->GetNode();
+      AxiAuxVar_Vertex = node[Point]->GetAxiAuxVar();
+      Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+
+	  for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
+        for (iDim = 0; iDim < nDim; iDim++) {
+          Partial_Res = AxiAuxVar_Vertex[iVar]*Normal[iDim];
+          node[Point]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
+        }
+      }
+    }
+  
+  for (iPoint=0; iPoint<geometry->GetnPoint(); iPoint++)
+    for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        AxiGradient = node[iPoint]->GetAxiAuxVarGradient();
+        DualArea = geometry->node[iPoint]->GetVolume();
+        AxiGrad_Val = AxiGradient[iVar][iDim]/(DualArea+EPS);
+        node[iPoint]->SetAxiAuxVarGradient(iVar, iDim, AxiGrad_Val);
+      }
+    }
+
+}
+// mskim-end
+
 
 void CSolver::SetAuxVar_Gradient_LS(CGeometry *geometry, CConfig *config) {
   
@@ -516,6 +582,131 @@ void CSolver::SetAuxVar_Gradient_LS(CGeometry *geometry, CConfig *config) {
   
 }
 
+// mskim
+void CSolver::SetAxiAuxVar_Gradient_LS(CGeometry *geometry, CConfig *config) {
+//  
+//  unsigned short iDim, jDim, iNeigh;
+//  unsigned short nDim = geometry->GetnDim();
+//  unsigned long iPoint, jPoint;
+//  su2double *Coord_i, *Coord_j, AuxVar_i, AuxVar_j, weight, r11, r12, r13, r22, r23, r23_a,
+//  r23_b, r33, z11, z12, z13, z22, z23, z33, detR2, product;
+//  bool singular = false;
+//  
+//  su2double *Cvector = new su2double [nDim];
+//  
+//  /*--- Loop over points of the grid ---*/
+//  
+//  for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+//    
+//    Coord_i = geometry->node[iPoint]->GetCoord();
+//    AuxVar_i = node[iPoint]->GetAuxVar();
+//    
+//    /*--- Inizialization of variables ---*/
+//    for (iDim = 0; iDim < nDim; iDim++)
+//      Cvector[iDim] = 0.0;
+//    
+//    r11 = 0.0; r12 = 0.0; r13 = 0.0; r22 = 0.0;
+//    r23 = 0.0; r23_a = 0.0; r23_b = 0.0; r33 = 0.0;
+//    
+//    for (iNeigh = 0; iNeigh < geometry->node[iPoint]->GetnPoint(); iNeigh++) {
+//      jPoint = geometry->node[iPoint]->GetPoint(iNeigh);
+//      Coord_j = geometry->node[jPoint]->GetCoord();
+//      AuxVar_j = node[jPoint]->GetAuxVar();
+//      
+//      weight = 0.0;
+//      for (iDim = 0; iDim < nDim; iDim++)
+//        weight += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
+//      
+//      /*--- Sumations for entries of upper triangular matrix R ---*/
+//      
+//      if (fabs(weight) > EPS) {
+//        r11 += (Coord_j[0]-Coord_i[0])*(Coord_j[0]-Coord_i[0])/weight;
+//        r12 += (Coord_j[0]-Coord_i[0])*(Coord_j[1]-Coord_i[1])/weight;
+//        r22 += (Coord_j[1]-Coord_i[1])*(Coord_j[1]-Coord_i[1])/weight;
+//        if (nDim == 3) {
+//          r13 += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+//          r23_a += (Coord_j[1]-Coord_i[1])*(Coord_j[2]-Coord_i[2])/weight;
+//          r23_b += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+//          r33 += (Coord_j[2]-Coord_i[2])*(Coord_j[2]-Coord_i[2])/weight;
+//        }
+//        
+//        /*--- Entries of c:= transpose(A)*b ---*/
+//        
+//        for (iDim = 0; iDim < nDim; iDim++)
+//          Cvector[iDim] += (Coord_j[iDim]-Coord_i[iDim])*(AuxVar_j-AuxVar_i)/(weight);
+//      }
+//      
+//    }
+//    
+//    /*--- Entries of upper triangular matrix R ---*/
+//    
+//    if (fabs(r11) < EPS) r11 = EPS;
+//    r11 = sqrt(r11);
+//    r12 = r12/r11;
+//    r22 = sqrt(r22-r12*r12);
+//    if (fabs(r22) < EPS) r22 = EPS;
+//    if (nDim == 3) {
+//      r13 = r13/r11;
+//      r23 = r23_a/(r22) - r23_b*r12/(r11*r22);
+//      r33 = sqrt(r33-r23*r23-r13*r13);
+//    }
+//    
+//    /*--- Compute determinant ---*/
+//    
+//    if (nDim == 2) detR2 = (r11*r22)*(r11*r22);
+//    else detR2 = (r11*r22*r33)*(r11*r22*r33);
+//    
+//    /*--- Detect singular matrices ---*/
+//    
+//    if (fabs(detR2) < EPS) singular = true;
+//    
+//    /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
+//    
+//    if (singular) {
+//      for (iDim = 0; iDim < nDim; iDim++)
+//        for (jDim = 0; jDim < nDim; jDim++)
+//          Smatrix[iDim][jDim] = 0.0;
+//    }
+//    else {
+//      if (nDim == 2) {
+//        Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
+//        Smatrix[0][1] = -r11*r12/detR2;
+//        Smatrix[1][0] = Smatrix[0][1];
+//        Smatrix[1][1] = r11*r11/detR2;
+//      }
+//      else {
+//        z11 = r22*r33; z12 = -r12*r33; z13 = r12*r23-r13*r22;
+//        z22 = r11*r33; z23 = -r11*r23; z33 = r11*r22;
+//        Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
+//        Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
+//        Smatrix[0][2] = (z13*z33)/detR2;
+//        Smatrix[1][0] = Smatrix[0][1];
+//        Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
+//        Smatrix[1][2] = (z23*z33)/detR2;
+//        Smatrix[2][0] = Smatrix[0][2];
+//        Smatrix[2][1] = Smatrix[1][2];
+//        Smatrix[2][2] = (z33*z33)/detR2;
+//      }
+//    }
+//    
+//    /*--- Computation of the gradient: S*c ---*/
+//    
+//    for (iDim = 0; iDim < nDim; iDim++) {
+//      product = 0.0;
+//      for (jDim = 0; jDim < nDim; jDim++)
+//        product += Smatrix[iDim][jDim]*Cvector[jDim];
+//      if (geometry->node[iPoint]->GetDomain())
+//        node[iPoint]->SetAuxVarGradient(iDim, product);
+//    }
+//  }
+//  
+//  delete [] Cvector;
+//  
+}
+// mskim-end
+
+
+
 void CSolver::SetSolution_Gradient_GG(CGeometry *geometry, CConfig *config) {
   unsigned long Point = 0, iPoint = 0, jPoint = 0, iEdge, iVertex;
   unsigned short iVar, iDim, iMarker;
@@ -548,7 +739,10 @@ void CSolver::SetSolution_Gradient_GG(CGeometry *geometry, CConfig *config) {
   
   /*--- Loop boundary edges ---*/
   for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
-    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY)
+//    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY)
+//    mskim, GG_Fix
+    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY &&
+        config->GetMarker_All_KindBC(iMarker) != PERIODIC_BOUNDARY)
     for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
       Point = geometry->vertex[iMarker][iVertex]->GetNode();
       Solution_Vertex = node[Point]->GetSolution();
@@ -830,6 +1024,7 @@ void CSolver::SetGridVel_Gradient(CGeometry *geometry, CConfig *config) {
   
 }
 
+// mskim. NOT moved to solver_adjoint_mean.cpp (CAdjEulerSolver)
 void CSolver::SetAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config) {
   
   unsigned short iDim, jDim, iNeigh, iMarker, Boundary;

@@ -33,6 +33,9 @@
 
 #pragma once
 
+// mskim
+//inline unsigned long GetnAuxVar() const { return nAuxVar; }
+
 inline bool CVariable::SetDensity(void) { return 0; }
 
 inline void CVariable::SetDensity(su2double val_density){ }
@@ -105,7 +108,10 @@ inline void CVariable::Add_DeltaSolution(unsigned short val_var, su2double val_s
 
 inline void CVariable::SetUndivided_Laplacian(unsigned short val_var, su2double val_undivided_laplacian) { Undivided_Laplacian[val_var] = val_undivided_laplacian; }
 
+// mskim
 inline void CVariable::SetAuxVar(su2double val_auxvar) { AuxVar = val_auxvar; }
+//inline void CVariable::SetAuxVar(unsigned long val_var, const su2double val_auxvar) { AuxVar[val_var] = val_auxvar; }
+
 
 inline void CVariable::SetSolution_Old(unsigned short val_var, su2double val_solution_old) { Solution_Old[val_var] = val_solution_old; }
 
@@ -119,7 +125,10 @@ inline void CVariable::SetSolution_Max(unsigned short val_var, su2double val_sol
 
 inline void CVariable::SetSolution_Min(unsigned short val_var, su2double val_solution) { Solution_Min[val_var] = val_solution; }
 
+// mskim
 inline void CVariable::SetAuxVarGradient(unsigned short iDim, su2double val_gradient) { Grad_AuxVar[iDim] = val_gradient; }
+//inline void CVariable::SetAuxVarGradient(unsigned long val_var, unsigned short val_dim, su2double val_gradient) { Grad_AuxVar[val_var][val_dim] = val_gradient; }
+
 
 inline su2double *CVariable::GetSolution(void) { return Solution; }
 
@@ -129,7 +138,16 @@ inline su2double *CVariable::GetSolution_time_n(void) { return Solution_time_n; 
 
 inline su2double *CVariable::GetSolution_time_n1(void) { return Solution_time_n1; }
 
+// mskim
 inline su2double CVariable::GetAuxVar(void) { return AuxVar; }
+// This is merged in .hpp file inline function
+//inline su2double CVariable::GetAuxVar(unsigned long val_var = 0) const { return AuxVar[val_var]; }
+
+// mskim
+// This is merged in .hpp file inline function
+//inline su2double *CVariable::GetAuxVar(void) const { return AuxVar; }
+
+
 
 inline su2double *CVariable::GetUndivided_Laplacian(void) { return Undivided_Laplacian; }
 
@@ -149,9 +167,20 @@ inline void CVariable::AddGradient(unsigned short val_var, unsigned short val_di
 
 inline void CVariable::SubtractGradient(unsigned short val_var, unsigned short val_dim, su2double val_value) { Gradient[val_var][val_dim] -= val_value; }
 
+// mskim
 inline void CVariable::AddAuxVarGradient(unsigned short val_dim, su2double val_value) { Grad_AuxVar[val_dim] += val_value; }
+//inline void CVariable::AddAuxVarGradient(unsigned short val_var, unsigned short val_dim, su2double val_value) { Grad_AuxVar[val_var][val_dim] += val_value; }
 
+// mskim
 inline void CVariable::SubtractAuxVarGradient(unsigned short val_dim, su2double val_value) { Grad_AuxVar[val_dim] -= val_value; }
+//inline void CVariable::SubtractAuxVarGradient(unsigned short val_var, unsigned short val_dim, su2double val_value) { Grad_AuxVar[val_var][val_dim] -= val_value; }
+
+// mskim
+inline void CVariable::AddAxiAuxVarGradient(unsigned long val_var, unsigned short val_dim, su2double val_value) { Grad_AxiAuxVar[val_var][val_dim] += val_value; }
+
+inline void CVariable::SubtractAxiAuxVarGradient(unsigned long val_var, unsigned short val_dim, su2double val_value) { Grad_AxiAuxVar[val_var][val_dim] -= val_value; }
+// mskim-end
+
 
 inline su2double CVariable::GetGradient(unsigned short val_var, unsigned short val_dim) { return Gradient[val_var][val_dim]; }
 
@@ -177,9 +206,14 @@ inline su2double **CVariable::GetGradient(void) { return Gradient; }
 
 inline su2double *CVariable::GetLimiter(void) { return Limiter; }
 
+// mskim
 inline su2double *CVariable::GetAuxVarGradient(void) { return Grad_AuxVar; }
+//inline su2double** CVariable::GetAuxVarGradient(void) { return Grad_AuxVar; }
 
+// mskim
 inline su2double CVariable::GetAuxVarGradient(unsigned short val_dim) { return Grad_AuxVar[val_dim]; }
+//inline su2double CVariable::GetAuxVarGradient(unsigned long val_var, unsigned short val_dim) { return Grad_AuxVar[val_var][val_dim]; }
+
 
 inline su2double *CVariable::GetResTruncError(void) { return Res_TruncError; }
 

@@ -4067,14 +4067,24 @@ CSourceAxisymmetric_Flow::CSourceAxisymmetric_Flow(unsigned short val_nDim, unsi
 CSourceAxisymmetric_Flow::~CSourceAxisymmetric_Flow(void) { }
 
 void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config) {
-  
-  su2double yinv, Pressure_i, Enthalpy_i, Velocity_i, sq_vel;
+
+// mskim
+//  su2double yinv, Pressure_i, Enthalpy_i, Velocity_i, sq_vel;
+  su2double Pressure_i, Enthalpy_i, Velocity_i, sq_vel;
+
   unsigned short iDim;
+  unsigned short iVar, jVar;
   
   bool implicit       = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
   bool compressible   = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
-  
+
+// mskim
+  bool viscous = config->GetViscous();
+  bool rans = (config->GetKind_Turb_Model() != NONE);
+
+// mskim, original code
+/*
   if (Coord_i[1] > 0.0) yinv = 1.0/Coord_i[1];
   else yinv = 0.0;
   
@@ -4126,6 +4136,211 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
   }
   
 }
+*/
+
+// mskim, version 7 base code
+  if (Coord_i[1] > EPS) {
+  
+    yinv = 1.0/Coord_i[1];
+  
+    if (compressible) {
+      sq_vel = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Velocity_i = U_i[iDim+1] / U_i[0];
+        sq_vel += Velocity_i *Velocity_i;
+      }
+      
+      Pressure_i = (Gamma-1.0)*U_i[0]*(U_i[nDim+1]/U_i[0]-0.5*sq_vel);
+      Enthalpy_i = (U_i[nDim+1] + Pressure_i) / U_i[0];
+      
+      val_residual[0] = yinv*Volume*U_i[2];
+      val_residual[1] = yinv*Volume*U_i[1]*U_i[2]/U_i[0];
+      val_residual[2] = yinv*Volume*(U_i[2]*U_i[2]/U_i[0]);
+      val_residual[3] = yinv*Volume*Enthalpy_i*U_i[2];
+    }
+    if (incompressible) {
+      val_residual[0] = yinv*Volume*U_i[2]*BetaInc2_i;
+      val_residual[1] = yinv*Volume*U_i[1]*U_i[2]/DensityInc_i;
+      val_residual[2] = yinv*Volume*U_i[2]*U_i[2]/DensityInc_i;
+    }
+  
+    if (implicit) {
+      Jacobian_i[0][0] = 0.0;
+      Jacobian_i[0][1] = 0.0;
+      Jacobian_i[0][2] = 1.0;
+      Jacobian_i[0][3] = 0.0;
+      
+      Jacobian_i[1][0] = -U_i[1]*U_i[2]/(U_i[0]*U_i[0]);
+      Jacobian_i[1][1] = U_i[2]/U_i[0];
+      Jacobian_i[1][2] = U_i[1]/U_i[0];
+      Jacobian_i[1][3] = 0.0;
+      
+      Jacobian_i[2][0] = -U_i[2]*U_i[2]/(U_i[0]*U_i[0]);
+      Jacobian_i[2][1] = 0.0;
+      Jacobian_i[2][2] = 2*U_i[2]/U_i[0];
+      Jacobian_i[2][3] = 0.0;
+      
+      Jacobian_i[3][0] = -Gamma*U_i[2]*U_i[3]/(U_i[0]*U_i[0]) + (Gamma-1)*U_i[2]*(U_i[1]*U_i[1]+U_i[2]*U_i[2])/(U_i[0]*U_i[0]*U_i[0]);
+      Jacobian_i[3][1] = -(Gamma-1)*U_i[2]*U_i[1]/(U_i[0]*U_i[0]);
+      Jacobian_i[3][2] = Gamma*U_i[3]/U_i[0] - 1/2*(Gamma-1)*( (U_i[1]*U_i[1]+U_i[2]*U_i[2])/(U_i[0]*U_i[0]) + 2*U_i[2]*U_i[2]/(U_i[0]*U_i[0]) );
+      Jacobian_i[3][3] = Gamma*U_i[2]/U_i[0];
+      
+      for (int iVar=0; iVar<4; iVar++)
+        for (int jVar=0; jVar<4; jVar++)
+          Jacobian_i[iVar][jVar] *= yinv*Volume;
+    }
+
+//    if (viscous) ResidualDiffusion();
+    if (viscous) ResidualDiffusion(val_residual);
+  }
+
+  else {
+
+    for (iVar=0; iVar < nVar; iVar++)
+      val_residual[iVar] = 0.0;
+
+    if (implicit) {
+      for (iVar=0; iVar < nVar; iVar++) {
+        for (jVar=0; jVar < nVar; jVar++)
+          Jacobian_i[iVar][jVar] = 0.0;
+      }
+    }
+  
+  }
+
+  
+} 
+// mskim-end
+
+
+// mskim
+//void CSourceAxisymmetric_Flow::ResidualDiffusion(){
+void CSourceAxisymmetric_Flow::ResidualDiffusion(su2double *val_residual){
+
+  if (!rans){ turb_ke_i = 0.0; }
+
+  su2double laminar_viscosity_i    = V_i[nDim+5];
+  su2double eddy_viscosity_i       = V_i[nDim+6];
+  su2double thermal_conductivity_i = V_i[nDim+7];
+  su2double heat_capacity_cp_i     = V_i[nDim+8];
+
+  su2double total_viscosity_i = laminar_viscosity_i + eddy_viscosity_i;
+  su2double total_conductivity_i = thermal_conductivity_i + heat_capacity_cp_i*eddy_viscosity_i/Prandtl_Turb;
+
+  su2double u = U_i[1]/U_i[0];
+  su2double v = U_i[2]/U_i[0];
+
+  val_residual[0] -= 0.0;
+  val_residual[1] -= Volume*(yinv*total_viscosity_i*(PrimVar_Grad_i[1][1]+PrimVar_Grad_i[2][0])
+                         -TWO3*AxiAuxVar_Grad_i[0][0]);
+  val_residual[2] -= Volume*(yinv*total_viscosity_i*2*(PrimVar_Grad_i[2][1]-v*yinv)
+                         -TWO3*AxiAuxVar_Grad_i[0][1]);
+  val_residual[3] -= Volume*(yinv*(total_viscosity_i*(u*(PrimVar_Grad_i[2][0]+PrimVar_Grad_i[1][1])
+                                                  +v*TWO3*(2*PrimVar_Grad_i[1][1]-PrimVar_Grad_i[1][0]
+                                                  -v*yinv+U_i[0]*turb_ke_i))
+                                                  -total_conductivity_i*PrimVar_Grad_i[0][1])
+                                                  -TWO3*(AxiAuxVar_Grad_i[1][1]+AxiAuxVar_Grad_i[2][0]));
+
+//  cout << "AxiAuxVar_Grad_i[0][0] = " << AxiAuxVar_Grad_i[0][0] << endl;
+//  cout << "AxiAuxVar_Grad_i[0][1] = " << AxiAuxVar_Grad_i[0][1] << endl;
+//  cout << "AxiAuxVar_Grad_i[1][1] = " << AxiAuxVar_Grad_i[1][1] << endl;
+//  cout << "AxiAuxVar_Grad_i[2][0] = " << AxiAuxVar_Grad_i[2][0] << endl;
+}
+// mskim-end
+
+
+
+// mskim
+void CSourceGeneralAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config) {
+  unsigned short iVar, jVar;
+  bool implicit       = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
+  bool compressible   = (config->GetKind_Regime() == COMPRESSIBLE);
+  bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
+
+
+  if (Coord_i[1] > EPS) {
+  
+    yinv = 1.0/Coord_i[1];
+
+    su2double Density_i = U_i[0];
+    su2double Velocity1_i = U_i[1]/U_i[0];
+    su2double Velocity2_i = U_i[2]/U_i[0];
+    su2double Energy_i = U_i[3]/U_i[0];
+  
+    su2double Pressure_i = V_j[3];
+    su2double Enthalpy_i = Energy_i + Pressure_i/Density_i;
+
+    if (compressible) {
+
+      val_residual[0] = yinv*Volume*U_i[2];
+      val_residual[1] = yinv*Volume*U_i[1]*Velocity2_i;
+      val_residual[2] = yinv*Volume*U_i[2]*Velocity2_i;
+      val_residual[3] = yinv*Volume*U_i[2]*Enthalpy_i;
+	  }
+
+    if (incompressible) {
+
+      val_residual[0] = yinv*Volume*U_i[2]*BetaInc2_i;
+      val_residual[1] = yinv*Volume*U_i[1]*U_i[2]/DensityInc_i;
+      val_residual[2] = yinv*Volume*U_i[2]*U_i[2]/DensityInc_i;
+      }
+
+    if (implicit) {
+
+      su2double dPdrho_e_i = S_i[0];
+      su2double dPde_rho_i = S_i[1];
+
+      Jacobian_i[0][0] = 0.0;
+      Jacobian_i[0][1] = 0.0;
+      Jacobian_i[0][2] = 1.0;
+      Jacobian_i[0][3] = 0.0;
+
+      Jacobian_i[1][0] = -Velocity1_i*Velocity2_i;
+      Jacobian_i[1][1] = Velocity2_i;
+      Jacobian_i[1][2] = Velocity1_i;
+      Jacobian_i[1][3] = 0.0;
+
+      Jacobian_i[2][0] = -Velocity2_i*Velocity2_i;
+      Jacobian_i[2][1] = 0.0;
+      Jacobian_i[2][2] = 2*Velocity2_i;
+      Jacobian_i[2][3] = 0.0;
+
+      Jacobian_i[3][0] = Velocity2_i*(dPdrho_e_i + dPde_rho_i/Density_i*(Velocity1_i*Velocity1_i
+                                                                       + Velocity2_i*Velocity2_i
+                                                                       - Energy_i) - Enthalpy_i);
+      Jacobian_i[3][1] = -Velocity1_i*Velocity2_i/Density_i *dPde_rho_i;
+      Jacobian_i[3][2] = Enthalpy_i - Velocity2_i*Velocity2_i/Density_i *dPde_rho_i;
+      Jacobian_i[3][3] = Velocity2_i + Velocity2_i/Density_i *dPde_rho_i;
+
+      for (int iVar=0; iVar<4; iVar++)
+        for (int jVar=0; jVar<4; jVar++)
+          Jacobian_i[iVar][jVar] *= yinv*Volume;
+    }
+
+//    if (viscous) ResidualDiffusion();
+    if (viscous) ResidualDiffusion(val_residual);
+
+  }
+
+  else {
+
+    for (iVar=0; iVar < nVar; iVar++)
+      val_residual[iVar] = 0.0;
+
+    if (implicit) {
+      for (iVar=0; iVar < nVar; iVar++) {
+        for (jVar=0; jVar < nVar; jVar++)
+          Jacobian_i[iVar][jVar] = 0.0;
+      }
+    }
+  
+  }
+
+}
+// mskim-end
+
+
+
 
 CSourceWindGust::CSourceWindGust(unsigned short val_nDim, unsigned short val_nVar, CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
   

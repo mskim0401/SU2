@@ -40,7 +40,10 @@ CAdjIncEulerVariable::CAdjIncEulerVariable(void) : CVariable() {
   ForceProj_Vector = NULL;
   ObjFuncSource = NULL;
   IntBoundary_Jump = NULL;
-  
+  // mskim
+  AxiAuxVar = NULL;
+  Grad_AxiAuxVar = NULL;
+
 }
 
 CAdjIncEulerVariable::CAdjIncEulerVariable(su2double val_psirho, su2double *val_phi, su2double val_psie, unsigned short val_nDim,
@@ -55,7 +58,11 @@ CAdjIncEulerVariable::CAdjIncEulerVariable(su2double val_psirho, su2double *val_
   ForceProj_Vector = NULL;
   ObjFuncSource = NULL;
   IntBoundary_Jump = NULL;
-  
+  // mskim
+  AxiAuxVar = NULL;
+  Grad_AxiAuxVar = NULL;
+
+
   /*--- Allocate residual structures ---*/
   Res_TruncError = new su2double [nVar];
   
@@ -106,6 +113,18 @@ CAdjIncEulerVariable::CAdjIncEulerVariable(su2double val_psirho, su2double *val_
   
   /*--- Allocate auxiliar vector for sensitivity computation ---*/
   Grad_AuxVar = new su2double [nDim];
+// mskim
+  nAuxVar = 1;
+  Grad_AxiAuxVar = new su2double* [nAuxVar];
+  for (iVar = 0; iVar < nAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
+  
+  Grad_AxiAuxVar = new su2double* [nAuxVar];
+  for (iVar = 0; iVar < nAuxVar; iVar++) {
+    Grad_AxiAuxVar[iVar] = new su2double [nDim];
+    for (iDim = 0; iDim < nDim; iDim++)
+      Grad_AxiAuxVar[iVar][iDim] = 0.0;
+  }
+// mskim-end
   
   /*--- Allocate and initialize projection vector for wall boundary condition ---*/
   ForceProj_Vector = new su2double [nDim];
@@ -183,7 +202,19 @@ CAdjIncEulerVariable::CAdjIncEulerVariable(su2double *val_solution, unsigned sho
   
   /*--- Allocate auxiliar vector for sensitivity computation ---*/
   Grad_AuxVar = new su2double [nDim];
+// mskim  
+  nAuxVar = 1;
+  Grad_AxiAuxVar = new su2double* [nAuxVar];
+  for (iVar = 0; iVar < nAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
   
+  Grad_AxiAuxVar = new su2double* [nAuxVar];
+  for (iVar = 0; iVar < nAuxVar; iVar++) {
+    Grad_AxiAuxVar[iVar] = new su2double [nDim];
+    for (iDim = 0; iDim < nDim; iDim++)
+      Grad_AxiAuxVar[iVar][iDim] = 0.0;
+  }
+// mskim-end
+
   /*--- Allocate and initializate projection vector for wall boundary condition ---*/
   ForceProj_Vector = new su2double [nDim];
   for (iDim = 0; iDim < nDim; iDim++)
@@ -198,12 +229,21 @@ CAdjIncEulerVariable::CAdjIncEulerVariable(su2double *val_solution, unsigned sho
 }
 
 CAdjIncEulerVariable::~CAdjIncEulerVariable(void) {
-  
+    unsigned short iVar;
+
   if (Psi               != NULL) delete [] Psi;
   if (ForceProj_Vector  != NULL) delete [] ForceProj_Vector;
   if (ObjFuncSource     != NULL) delete [] ObjFuncSource;
   if (IntBoundary_Jump  != NULL) delete [] IntBoundary_Jump;
-  
+  // mskim
+  if (AxiAuxVar       != NULL) delete [] AxiAuxVar;
+  nAuxVar = 1;
+  if (Grad_AxiAuxVar  != NULL) {
+    for (iVar = 0; iVar < nAuxVar; iVar++)
+      if (Grad_AxiAuxVar != NULL) delete [] Grad_AxiAuxVar[iVar];
+        delete [] Grad_AxiAuxVar;
+  }
+
 }
 
 bool CAdjIncEulerVariable::SetPrimVar(su2double SharpEdge_Distance, bool check, CConfig *config) {

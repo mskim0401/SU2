@@ -61,6 +61,14 @@ CEulerVariable::CEulerVariable(void) : CVariable() {
   beta_fiml = 1.0;
   beta_fiml_train = 1.0;
  
+// mskim
+  nAuxVar = 0;
+//  AuxVar = NULL;
+//  Grad_AuxVar = NULL;
+  AxiAuxVar = NULL;
+  Grad_AxiAuxVar = NULL;
+
+
 }
 
 CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, su2double val_energy, unsigned short val_nDim,
@@ -98,6 +106,12 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
   nSecondaryVarGrad = 0;
 
   Undivided_Laplacian = NULL;
+
+// mskim
+//  AuxVar = NULL;
+//  Grad_AuxVar = NULL;
+  AxiAuxVar = NULL;
+  Grad_AxiAuxVar = NULL;
 
   /*--- Allocate and initialize the primitive variables and gradients ---*/
   nPrimVar = nDim+9; nPrimVarGrad = nDim+4;
@@ -217,6 +231,20 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
       Gradient_Secondary[iVar][iDim] = 0.0;
   }
 
+// mskim, is it work..?
+  nAuxVar = 3;
+  if (config->GetAxisymmetric()) {
+	AxiAuxVar = new su2double [nAuxVar];
+	for (iVar = 0; iVar < nAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
+
+	Grad_AxiAuxVar = new su2double* [nAuxVar];
+    for (iVar = 0; iVar < nAuxVar; iVar++) {
+      Grad_AxiAuxVar[iVar] = new su2double [nDim];
+      for (iDim = 0; iDim < nDim; iDim++)
+        Grad_AxiAuxVar[iVar][iDim] = 0.0;
+	}
+  }
+
 }
 
 CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim, unsigned short val_nvar, CConfig *config) : CVariable(val_nDim, val_nvar, config) {
@@ -254,6 +282,14 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
  
   Undivided_Laplacian = NULL;
  
+// mskim
+//  AuxVar = NULL;
+//  Grad_AuxVar = NULL;
+  nAuxVar = 0;
+  AxiAuxVar = NULL;
+  Grad_AxiAuxVar = NULL;
+
+
     /*--- Allocate and initialize the primitive variables and gradients ---*/
   nPrimVar = nDim+9; nPrimVarGrad = nDim+4;
   if (viscous) { nSecondaryVar = 8; nSecondaryVarGrad = 2; }
@@ -355,6 +391,20 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
       Gradient_Secondary[iVar][iDim] = 0.0;
   }
 
+// mskim, is it work..?
+  nAuxVar = 3;
+  if (config->GetAxisymmetric()) {
+    AxiAuxVar = new su2double [nAuxVar];
+    for (iVar = 0; iVar < nAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
+
+	Grad_AxiAuxVar = new su2double* [nAuxVar];
+    for (iVar = 0; iVar < nAuxVar; iVar++) {
+      Grad_AxiAuxVar[iVar] = new su2double [nDim];
+      for (iDim = 0; iDim < nDim; iDim++)
+        Grad_AxiAuxVar[iVar][iDim] = 0.0;
+	}
+  }
+
   
 }
 
@@ -381,6 +431,15 @@ CEulerVariable::~CEulerVariable(void) {
   }
 
   if (Undivided_Laplacian != NULL) delete [] Undivided_Laplacian;
+
+// mskim
+  if (AxiAuxVar       != NULL) delete [] AxiAuxVar;
+ // nAuxVar = 3;
+  if (Grad_AxiAuxVar  != NULL) {
+    for (iVar = 0; iVar < nAuxVar; iVar++)
+	  if (Grad_AxiAuxVar != NULL) delete [] Grad_AxiAuxVar[iVar];
+	delete [] Grad_AxiAuxVar;
+  }
   
 }
 

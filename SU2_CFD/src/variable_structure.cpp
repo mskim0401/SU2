@@ -47,6 +47,9 @@ CVariable::CVariable(void) {
   Solution_Max = NULL;
   Solution_Min = NULL;
   Grad_AuxVar = NULL;
+// mskim
+  Grad_AxiAuxVar = NULL;
+
   Undivided_Laplacian = NULL;
   Res_TruncError = NULL;
   Residual_Old = NULL;
@@ -66,6 +69,9 @@ CVariable::CVariable(unsigned short val_nvar, CConfig *config) {
   Solution_Max = NULL;
   Solution_Min = NULL;
   Grad_AuxVar = NULL;
+// mskim
+  Grad_AxiAuxVar = NULL;
+
   Undivided_Laplacian = NULL;
   Res_TruncError = NULL;
   Residual_Old = NULL;
@@ -99,6 +105,9 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
   Solution_Max = NULL;
   Solution_Min = NULL;
   Grad_AuxVar = NULL;
+// mskim
+  Grad_AxiAuxVar = NULL;
+
   Undivided_Laplacian = NULL;
   Res_TruncError = NULL;
   Residual_Old = NULL;
@@ -131,6 +140,19 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
     Solution_time_n1 = new su2double [nVar];
   }
   
+  // mskim
+  /*--- Allocate auxiliar vector for sensitivity computation ---*/
+  Grad_AxiAuxVar = new su2double* [nAuxVar];
+	for (iVar = 0; iVar < 3; iVar++) {
+	  Grad_AxiAuxVar[iVar] = new su2double [nDim];
+	  for (iDim = 0; iDim < nDim; iDim++)
+	    Grad_AxiAuxVar[iVar][iDim] = 0.0;
+  }
+  // mskim-end
+
+
+
+
 }
 
 CVariable::~CVariable(void) {
@@ -144,6 +166,13 @@ CVariable::~CVariable(void) {
   if (Solution_Max        != NULL) delete [] Solution_Max;
   if (Solution_Min        != NULL) delete [] Solution_Min;
   if (Grad_AuxVar         != NULL) delete [] Grad_AuxVar;
+  // mskim
+//  if (Grad_AxiAuxVar      != NULL) {
+//    for (iVar = 0; iVar < 3; iVar++)
+//      if (Grad_AxiAuxVar  != NULL) delete [] Grad_AxiAuxVar[iVar];
+//    delete [] Grad_AxiAuxVar;
+//  }
+
   //if (Undivided_Laplacian != NULL) delete [] Undivided_Laplacian; // Need to break pointer dependence btwn CNumerics and CVariable
   if (Res_TruncError      != NULL) delete [] Res_TruncError;
   if (Residual_Old        != NULL) delete [] Residual_Old;
@@ -371,6 +400,15 @@ void CVariable::SetAuxVarGradientZero(void) {
     Grad_AuxVar[iDim] = 0.0;
   
 }
+
+// mskim
+void CVariable::SetAxiAuxVarGradientZero(void) {
+  
+  for (unsigned short iVar = 0; iVar < 3; iVar++)
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Grad_AxiAuxVar[iVar][iDim] = 0.0;
+}
+
 
 void CVariable::SetGradient(su2double **val_gradient) {
   

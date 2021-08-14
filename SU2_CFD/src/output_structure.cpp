@@ -5764,12 +5764,14 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               case ADJ_EULER : case ADJ_NAVIER_STOKES: case ADJ_RANS:
                 
                 cout << endl << "---------------------- Local Time Stepping Summary ----------------------" << endl;
-                
+                /* mskim */
+				/*cout << scientific;*/
                 for (unsigned short iMesh = FinestMesh; iMesh <= config[val_iZone]->GetnMGLevels(); iMesh++)
                   cout << "MG level: "<< iMesh << " -> Min. DT: " << solver_container[val_iZone][iMesh][FLOW_SOL]->GetMin_Delta_Time()<<
                   ". Max. DT: " << solver_container[val_iZone][iMesh][FLOW_SOL]->GetMax_Delta_Time() <<
                   ". CFL: " << config[val_iZone]->GetCFL(iMesh)  << "." << endl;
-                
+                /* mskim */
+				/*cout.unsetf(ios::scientific); */
                 cout << "-------------------------------------------------------------------------" << endl;
                 
                 if (direct_diff != NO_DERIVATIVE) {
@@ -8783,7 +8785,10 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
   string text_line, surfCp_filename;
   ifstream Surface_file;
   char buffer[50], cstr[200];
+
+/* mskim, false -> true */
   bool jrh_debug = false;
+//  cout << "mskim" << endl;
   if (jrh_debug) cout << "JRH: In COutput::SetCp_InverseDesign" << endl;
   
   nPointLocal = geometry->GetnPoint();

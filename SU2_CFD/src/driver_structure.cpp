@@ -893,7 +893,7 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
   
   /*--- Definition of the Class for the solution: solver_container[DOMAIN][MESH_LEVEL][EQUATION]. Note that euler, ns
    and potential are incompatible, they use the same position in sol container ---*/
-  
+
   for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
     
     /*--- DeAllocate solution for a template problem ---*/
@@ -901,7 +901,7 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
     if (template_solver) {
       delete solver_container[iMGlevel][TEMPLATE_SOL];
     }
-    
+
     /*--- DeAllocate solution for adjoint problem ---*/
     
     if (adj_euler || adj_ns || disc_adj) {
@@ -910,13 +910,15 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
         delete solver_container[iMGlevel][ADJTURB_SOL];
       }
     }
-    
+    cout << "mskim Debug:: Attempt to DeAllocate Solution for Direct" << endl;
+
     /*--- DeAllocate solution for direct problem ---*/
     
     if (euler || ns) {
       delete solver_container[iMGlevel][FLOW_SOL];
     }
-    
+    cout << "mskim Debug:: Complete! Deallocate Solution for Direct" << endl;
+
     if (turbulent) {
       if (spalart_allmaras || neg_spalart_allmaras || menter_sst || fiml_spalart_allmaras) {
         delete solver_container[iMGlevel][TURB_SOL];
@@ -1368,8 +1370,15 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       
       if (config->GetRotating_Frame() == YES)
         numerics_container[iMGlevel][FLOW_SOL][SOURCE_FIRST_TERM] = new CSourceRotatingFrame_Flow(nDim, nVar_Flow, config);
-      else if (config->GetAxisymmetric() == YES)
-        numerics_container[iMGlevel][FLOW_SOL][SOURCE_FIRST_TERM] = new CSourceAxisymmetric_Flow(nDim, nVar_Flow, config);
+      else if (config->GetAxisymmetric() == YES) {
+// mskim, added CSourceGeneralAxisymmetric_Flow
+	    if (ideal_gas)
+		  numerics_container[iMGlevel][FLOW_SOL][SOURCE_FIRST_TERM] = new CSourceAxisymmetric_Flow(nDim, nVar_Flow, config);
+		else 
+		  numerics_container[iMGlevel][FLOW_SOL][SOURCE_FIRST_TERM] = new CSourceGeneralAxisymmetric_Flow(nDim, nVar_Flow, config);
+// mskim-end
+
+	  }
       else if (config->GetGravityForce() == YES)
         numerics_container[iMGlevel][FLOW_SOL][SOURCE_FIRST_TERM] = new CSourceGravity(nDim, nVar_Flow, config);
       else if (config->GetWind_Gust() == YES)

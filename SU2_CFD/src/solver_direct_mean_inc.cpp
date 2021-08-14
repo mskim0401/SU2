@@ -3940,6 +3940,9 @@ void CIncEulerSolver::SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *con
   
   /*--- Loop boundary edges ---*/
   for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+// mskim, fix periodic BC bug
+    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY &&
+        config->GetMarker_All_KindBC(iMarker) != PERIODIC_BOUNDARY)
     for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
       iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
       if (geometry->node[iPoint]->GetDomain()) {
@@ -4801,6 +4804,9 @@ void CIncEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
   unsigned long iVertex, iPoint, Point_Normal;
   su2double Area, yCoordRef, yCoord;
   su2double *V_outlet, *V_domain;
+// mskim. For Inc. Outlet BC
+  su2double P_Outlet = 0.0;
+  string Marker_Tag       = config->GetMarker_All_TagBound(val_marker);
   
   bool implicit      = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
   bool grid_movement = config->GetGrid_Movement();
@@ -4842,6 +4848,10 @@ void CIncEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
       V_domain = node[iPoint]->GetPrimitive();
 
       /*--- The pressure is computed from the infinity values ---*/
+
+      // mskim, outlet back pressure update
+      /*--- Retrieve the specified back pressure for this outlet. ---*/
+      P_Outlet = config->GetOutlet_Pressure(Marker_Tag)/config->GetPressure_Ref();
       
       if (gravity) {
         yCoordRef = 0.0;
@@ -4849,7 +4859,9 @@ void CIncEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
         V_outlet[0] = GetPressure_Inf() + GetDensity_Inf()*((yCoordRef-yCoord)/(config->GetFroude()*config->GetFroude()));
       }
       else {
-        V_outlet[0] = GetPressure_Inf();
+	  // mskim, outlet back pressure update
+//        V_outlet[0] = GetPressure_Inf();
+        V_outlet[0] = P_Outlet;
       }
 
       /*--- Neumann condition for the velocity ---*/
