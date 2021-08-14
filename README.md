@@ -3,7 +3,11 @@ SU2 FIML Code Axisymmety Modifided Version by M. S. Kim
 -----------------------------------------------------------
 
 This Branch is from SU2 FIML branch by J. Holland. <br />
+<<<<<<< HEAD
 Because SU2 v5.0 does not support axisymmetric problem, source code was modified as SU2 v7 did. Some bugs in SU2 v5.0 are fixed. 
+=======
+Because SU2 v5.0 does not support axisymmetric problem, source code was modified as SU2 v7 does. Some bugs in SU2 v5.0 are fixed. 
+>>>>>>> 9a03f1471b09e79dcf2d5e12c4d0d8e53a17ed74
 
 See below pull requests.<br />
 Viscous axisymmetric source term: https://github.com/su2code/SU2/pull/1106/commits<br />
