@@ -245,6 +245,29 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
 	}
   }
 
+// mskim TEST
+//  cout << "AxiAuxVar[0] = " << AxiAuxVar[0] << endl;
+//  cout << "AxiAuxVar[1] = " << AxiAuxVar[1] << endl;
+//  cout << "AxiAuxVar[2] = " << AxiAuxVar[2] << endl;
+//
+//  cout << "Grad_AxiAuxVar[0][0] = " << Grad_AxiAuxVar[0][0] << endl;
+//  cout << "Grad_AxiAuxVar[0][1] = " << Grad_AxiAuxVar[0][1] << endl;
+//  cout << "Grad_AxiAuxVar[0][2] = " << Grad_AxiAuxVar[0][2] << endl;
+//  cout << "Grad_AxiAuxVar[0][3] = " << Grad_AxiAuxVar[0][3] << endl;
+//
+//  cout << "Grad_AxiAuxVar[1][0] = " << Grad_AxiAuxVar[1][0] << endl;
+//  cout << "Grad_AxiAuxVar[1][0] = " << Grad_AxiAuxVar[1][0] << endl;
+//  cout << "Grad_AxiAuxVar[1][1] = " << Grad_AxiAuxVar[1][1] << endl;
+//  cout << "Grad_AxiAuxVar[1][2] = " << Grad_AxiAuxVar[1][2] << endl;
+//
+//  cout << "Grad_AxiAuxVar[2][3] = " << Grad_AxiAuxVar[2][3] << endl;
+//  cout << "Grad_AxiAuxVar[2][1] = " << Grad_AxiAuxVar[2][1] << endl;
+//  cout << "Grad_AxiAuxVar[2][2] = " << Grad_AxiAuxVar[2][2] << endl;
+//  cout << "Grad_AxiAuxVar[2][3] = " << Grad_AxiAuxVar[2][3] << endl;
+
+//  cout << "nAuxVar = " << nAuxVar << endl;
+//  cout << "nDim = " << nDim << endl;
+
 }
 
 CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim, unsigned short val_nvar, CConfig *config) : CVariable(val_nDim, val_nvar, config) {
@@ -404,7 +427,6 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
         Grad_AxiAuxVar[iVar][iDim] = 0.0;
 	}
   }
-
   
 }
 

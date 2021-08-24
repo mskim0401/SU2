@@ -415,9 +415,9 @@ inline void CNumerics::SetAuxVarGrad(su2double *val_auxvargrad_i, su2double *val
 }
   
 // mskim
-inline void CNumerics::SetAxiAuxVarGrad(su2double **val_auxvar_grad_i, su2double **val_auxvar_grad_j) {
-  AxiAuxVar_Grad_i = val_auxvar_grad_i;
-  AxiAuxVar_Grad_j = val_auxvar_grad_j;
+inline void CNumerics::SetAxiAuxVarGrad(su2double **val_axi_auxvargrad_i, su2double **val_axi_auxvargrad_j) {
+  AxiAuxVar_Grad_i = val_axi_auxvargrad_i;
+  AxiAuxVar_Grad_j = val_axi_auxvargrad_j;
 }
 
 inline void CNumerics::SetNormal(su2double *val_normal) { Normal = val_normal; }

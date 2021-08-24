@@ -487,10 +487,10 @@ public:
 // mskim
   /*!
    * \brief Set the gradient of the auxiliary variables.
-   * \param[in] val_auxvar_grad_i - Gradient of the axisymmetric auxiliary variable at point i.
-   * \param[in] val_auxvar_grad_j - Gradient of the axisymmetric auxiliary variable at point j.
+   * \param[in] val_axi_auxvargrad_i - Gradient of the axisymmetric auxiliary variable at point i.
+   * \param[in] val_axi_auxvargrad_j - Gradient of the axisymmetric auxiliary variable at point j.
    */
-  void SetAxiAuxVarGrad(su2double **val_auxvar_grad_i, su2double **val_auxvar_grad_j);
+  void SetAxiAuxVarGrad(su2double **val_axi_auxvargrad_i, su2double **val_axi_auxvargrad_j);
   
   /*!
    * \brief Set the diffusion coefficient
@@ -4704,7 +4704,7 @@ protected:
   * \brief Diffusion residual of the axisymmetric source term.
   */
 //  void ResidualDiffusion();
-  void ResidualDiffusion(su2double *val_residual);
+  void ResidualDiffusion(su2double *val_residual, CConfig *config);
 // mskim-end
 
 public:

@@ -5082,7 +5082,6 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
                                 (config->GetKind_FluidModel() == IDEAL_GAS);
   const bool rans             = (config->GetKind_Turb_Model() != NONE);
   
-
   /*--- Initialize the source residual to zero ---*/
   for (iVar = 0; iVar < nVar; iVar++) Residual[iVar] = 0.0;
   
@@ -5134,7 +5133,6 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 
         if (yCoord > EPS){
           su2double nu_v_on_y = Total_Viscosity*yVelocity/yCoord;
-		  // Must be changed SetAxiAuxVar
 		  AxiAuxVar[0] = nu_v_on_y;
 		  AxiAuxVar[1] = nu_v_on_y*yVelocity;
 		  AxiAuxVar[2] = nu_v_on_y*xVelocity;
@@ -5143,18 +5141,15 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
         node[iPoint]->SetAxiAuxVar(AxiAuxVar);
 
 //          node[iPoint]->SetAuxVar(0, nu_v_on_y);
-//          node[iPoint]-->SetAuxVar(1, nu_v_on_y*yVelocity);
+//          node[iPoint]->SetAuxVar(1, nu_v_on_y*yVelocity);
 //          node[iPoint]->SetAuxVar(2, nu_v_on_y*xVelocity);
       }
 
       /*--- Compute the auxiliary variable gradient with GG or WLS. ---*/
       if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
-//        SetAuxVar_Gradient_GG(geometry, config);
         SetAxiAuxVar_Gradient_GG(geometry, config);
       }
-	  // mskim: Currently not work.
       if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
-//        SetAuxVar_Gradient_LS(geometry, config);
         SetAxiAuxVar_Gradient_LS(geometry, config);
       }
     }
@@ -5181,16 +5176,13 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 	  if (!ideal_gas) numerics->SetSecondary(node[iPoint]->GetSecondary(), node[iPoint]->GetSecondary());
 
       if (viscous) {
-
         /*--- Set gradient of primitive variables ---*/
         numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
         /*--- Set gradient of auxillary variables ---*/
-//        numerics->SetAuxVarGrad(node[iPoint]->GetAuxVarGradient(), NULL);
         numerics->SetAxiAuxVarGrad(node[iPoint]->GetAxiAuxVarGradient(), NULL);
 
         /*--- Set turbulence kinetic energy ---*/
         if (rans){
-//          CVariable* turbNodes = solver_container[TURB_SOL]->GetNode();
           numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
 		}
 	  }

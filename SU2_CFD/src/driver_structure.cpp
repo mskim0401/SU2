@@ -1643,9 +1643,14 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           
           if (config->GetRotating_Frame() == YES)
             numerics_container[iMGlevel][ADJFLOW_SOL][SOURCE_SECOND_TERM] = new CSourceRotatingFrame_AdjFlow(nDim, nVar_Adj_Flow, config);
+
+		// mskim. RANS Axisymmetric Adjoint Source Term...? Currently Not worked
+//		  else if (config->GetAxisymmetric() == YES)
+//            numerics_container[iMGlevel][ADJFLOW_SOL][SOURCE_SECOND_TERM] = new CSourceAxisymmetric_AdjFlow(nDim, nVar_Adj_Flow, config);
+
           else
             numerics_container[iMGlevel][ADJFLOW_SOL][SOURCE_SECOND_TERM] = new CSourceConservative_AdjFlow(nDim, nVar_Adj_Flow, config);
-          
+
         }
         
         else {

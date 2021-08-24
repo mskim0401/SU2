@@ -2,6 +2,8 @@
 SU2 FIML Code Axisymmety Modifided Version by M. S. Kim
 -----------------------------------------------------------
 
+Ongoing process:: Results Validation 
+
 This Branch is from SU2 FIML branch by J. Holland. <br />
 Because SU2 v5.0 does not support axisymmetric problem, source code was modified as SU2 v7 does. Some bugs in SU2 v5.0 are fixed. 
 
@@ -12,7 +14,6 @@ SST Jacobian bug: https://github.com/su2code/SU2/pull/491<br />
 Periodic Green Gauss bug: https://github.com/su2code/SU2/pull/496<br />
 Incompressible outlet BC: SU2 v6
 
-Currently, only Green Gauss method can be used for the gradient calculation.<br />
 For the turbulence, SA axisymmetric source term will be added. Axisymmetric case with SST model is now available, but SST with FIML is unavailable yet.
 
 The following is readme provided by J. Holland:

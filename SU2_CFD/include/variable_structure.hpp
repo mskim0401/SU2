@@ -68,7 +68,7 @@ protected:
 
   su2double AuxVar;      /*!< \brief Auxiliar variable for gradient computation. */
   su2double *Grad_AuxVar;  /*!< \brief Gradient of the auxiliar variable of the problem. */
-// mskim.
+// mskim
   su2double *AxiAuxVar;      /*!< \brief axisymmetric Auxiliar variable for gradient computation. */
   su2double **Grad_AxiAuxVar;  /*!< \brief Gradient of the axisymmetric auxiliar variable. */
 
@@ -355,28 +355,19 @@ public:
    * \param[in] val_auxvar - Value of the auxiliar variable.
    * \param[in] val_var - Index of the variable.
    */
-// mskim 
   void SetAuxVar(su2double val_auxvar);
 
   /*!
    * \brief Get the value of the auxiliary variable.
    * \return Value of the auxiliary variable.
    */
-// mskim
   su2double GetAuxVar(void);
-//// This is merged.
-//  su2double GetAuxVar(unsigned long val_var);
-//  inline su2double GetAuxVar(unsigned long val_var) const { return AuxVar[val_var]; }
-
-// mskim
-//  const su2double *GetAuxVar(void);
-//  inline su2double *GetAuxVar(void) const { return AuxVar; }
-
   
   /*!
    * \brief Set the auxiliary variable gradient to zero value.
    */
   void SetAuxVarGradientZero(void);
+
 // mskim
   void SetAxiAuxVarGradientZero(void);
 
@@ -385,16 +376,13 @@ public:
    * \param[in] val_dim - Index of the dimension.
    * \param[in] val_gradient - Value of the gradient for the index <i>val_dim</i>.
    */
-  // mskim
   void SetAuxVarGradient(unsigned short val_dim, su2double val_gradient);
-//  void SetAuxVarGradient(unsigned long val_var, unsigned short val_dim, su2double val_gradient);
   
   /*!
    * \brief Add a value to the auxiliary variable gradient.
    * \param[in] val_dim - Index of the dimension.
    * \param[in] val_value - Value of the gradient to be added for the index <i>val_dim</i>.
    */
-   // mskim
   void AddAuxVarGradient(unsigned short val_dim, su2double val_value);
 //  void AddAuxVarGradient(unsigned short val_var, unsigned short val_dim, su2double val_value);
   
@@ -403,9 +391,7 @@ public:
    * \param[in] val_dim - Index of the dimension.
    * \param[in] val_value - Value of the gradient to be subtracted for the index <i>val_dim</i>.
    */
-   // mskim
   void SubtractAuxVarGradient(unsigned short val_dim, su2double val_value);
-//  void SubtractAuxVarGradient(unsigned short val_var, unsigned short val_dim, su2double val_value);
 
 // mskim
   void AddAxiAuxVarGradient(unsigned long val_var, unsigned short val_dim, su2double val_value);
@@ -417,21 +403,17 @@ public:
    * \return Value of the gradient of the auxiliary variable.
    */
 
-// mskim
   su2double *GetAuxVarGradient(void);
-//  su2double** GetAuxVarGradient(void);
   
   /*!
    * \brief Get the gradient of the auxiliary variable.
    * \param[in] val_dim - Index of the dimension.
    * \return Value of the gradient of the auxiliary variable for the dimension <i>val_dim</i>.
    */
-// mskim   
   su2double GetAuxVarGradient(unsigned short val_dim);
-//  su2double GetAuxVarGradient(unsigned long val_var, unsigned short val_dim);
 
 
-// mskim - Add axisymmetric axu. var.
+// mskim - Add axisymmetric Axuvar.
   /*!
    * \brief Set axisymmetric auxiliar variables.
    * \param[in] axiauxvar - Value of the auxiliar variable.
@@ -448,6 +430,7 @@ public:
 
   inline void SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value) { Grad_AxiAuxVar[val_var][val_dim] = value; }
 
+// It is naybe not used...
   inline su2double GetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim) { return Grad_AxiAuxVar[val_var][val_dim]; }
 
   inline su2double **GetAxiAuxVarGradient(void) { return Grad_AxiAuxVar; }

@@ -111,7 +111,9 @@ protected:
   
   su2double **Smatrix,  /*!< \brief Auxiliary structure for computing gradients by least-squares */
   **Cvector;       /*!< \brief Auxiliary structure for computing gradients by least-squares */
-  
+
+// mskim
+  su2double **AxiCvector; /*!< \brief Axisymmetric Auxiliary structure for computing gradients by least-squares */
 
   unsigned short nOutputVariables;  /*!< \brief Number of variables to write. */
 
@@ -9211,7 +9213,7 @@ protected:
   su2double ACoeff, ACoeff_inc, ACoeff_old;
   bool Update_ACoeff;
   
-  // mskim, moved from CSolver class
+  // mskim
 //  void SetAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config);
 
 public:
@@ -9800,7 +9802,7 @@ protected:
   su2double ACoeff, ACoeff_inc, ACoeff_old;
   bool Update_ACoeff;
 
-  // mskim, moved from CSolver class
+  // mskim
 //    void SetAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config);
 
 public:
