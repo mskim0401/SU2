@@ -4079,8 +4079,11 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
 
   unsigned short iDim;
   unsigned short iVar, jVar;
-  
-  bool implicit       = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
+
+// mskim
+//  bool implicit       = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
+  bool implicit       = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
+
   bool compressible   = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
 

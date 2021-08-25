@@ -625,6 +625,12 @@ bool CNSVariable::SetStrainMag(bool val_limiter) {
   for (iDim = 0; iDim < nDim; iDim++) {
     StrainMag += pow(Gradient_Primitive[iDim+1][iDim] - 1.0/3.0*Div, 2.0);
   }
+
+// mskim, PR#670. Add missing term to strain magnitude for 2D
+  if (nDim ==2) {
+    StrainMag += pow(1.0/3.0*Div, 2.0);
+  }
+
   
   /*--- Add off diagonals ---*/
 

@@ -11,6 +11,10 @@ See below pull requests.<br />
 Viscous axisymmetric source term: https://github.com/su2code/SU2/pull/1106/commits<br />
 SST 2D axisymmetric source term: https://github.com/su2code/SU2/pull/1195<br />
 SST Jacobian bug: https://github.com/su2code/SU2/pull/491<br />
+Axisymmetric source term implicit decision: https://github.com/su2code/SU2/pull/456<br />
+Viscous Jacobian sign error: https://github.com/su2code/SU2/pull/612<br />
+
+Add missing term to strain magnitude for 2D: https://github.com/su2code/SU2/pull/670<br />
 Periodic Green Gauss bug: https://github.com/su2code/SU2/pull/496<br />
 Incompressible outlet BC: SU2 v6
 
