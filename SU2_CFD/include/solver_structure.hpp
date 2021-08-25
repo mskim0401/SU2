@@ -470,6 +470,14 @@ public:
    */
   void SetAuxVar_Surface_Gradient(CGeometry *geometry, CConfig *config);
 
+// mskim. Add MPI Setting for AxiAuxVar Gradient
+  /*!
+   * \brief Impose the send-receive boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void Set_MPI_AxiAuxVar_Gradient(CGeometry *geometry, CConfig *config);
+
 
 // mskim. Add AxiAuxVar Gradient options
   /*!
