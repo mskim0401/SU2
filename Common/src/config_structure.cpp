@@ -42,25 +42,27 @@ CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_softwar
   rank = MASTER_NODE;
 #endif
 
+// mskim. Delete debugging outputs
   /*--- Initialize pointers to Null---*/
-  cout << "JRH Debugging: In CConfig Constructor, Calling SetPointersNull()" << endl;
+//  cout << "JRH Debugging: In CConfig Constructor, Calling SetPointersNull()" << endl;
   SetPointersNull();
 
   /*--- Reading config options  ---*/
-  cout << "JRH Debugging: In CConfig Constructor, Calling SetConfig_Options()" << endl;
+//  cout << "JRH Debugging: In CConfig Constructor, Calling SetConfig_Options()" << endl;
   SetConfig_Options(val_iZone, val_nZone);
 
   /*--- Parsing the config file  ---*/
-  cout << "JRH Debugging: In CConfig Constructor, Calling SetConfig_Parsing()" << endl;
+//  cout << "JRH Debugging: In CConfig Constructor, Calling SetConfig_Parsing()" << endl;
   SetConfig_Parsing(case_filename);
 
   /*--- Configuration file postprocessing ---*/
-  cout << "JRH Debugging: In CConfig Constructor, Calling SetPostprocessing()" << endl;
+//  cout << "JRH Debugging: In CConfig Constructor, Calling SetPostprocessing()" << endl;
   SetPostprocessing(val_software, val_iZone, val_nDim);
 
   /*--- Configuration file boundaries/markers setting ---*/
-  cout << "JRH Debugging: In CConfig Constructor, Calling SetMarkers()" << endl;
+//  cout << "JRH Debugging: In CConfig Constructor, Calling SetMarkers()" << endl;
   SetMarkers(val_software);
+// mskim-end
 
   /*--- Configuration file output ---*/
 
@@ -2082,7 +2084,8 @@ bool CConfig::SetRunTime_Parsing(char case_filename[MAX_STRING_SIZE]) {
 }
 
 void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_izone, unsigned short val_nDim) {
-  cout << "JRH Debugging: In CConfig::SetPostprocessing" << endl;
+// mskim. Delete debugging output
+//  cout << "JRH Debugging: In CConfig::SetPostprocessing" << endl;
   unsigned short iZone, iCFL, iMarker;
   unsigned long nDV_Temp;
   bool ideal_gas       = (Kind_FluidModel == STANDARD_AIR || Kind_FluidModel == IDEAL_GAS );
@@ -2221,7 +2224,8 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 			 // cout << "Appending Design Variables With FIML Correction at Each Node. - JRH" << endl;
 			  if (Kind_Train_NN == BACKPROP || Train_NN == false) {
 				  nDV_Temp = GetnPoin(Mesh_FileName, Mesh_FileFormat);
-				  cout << "JRH Debugging: nDV_Temp Set To " << nDV_Temp << " After Reading Mesh File for NPOIN" << endl;
+// mskim. Delete debugging output
+//				  cout << "JRH Debugging: nDV_Temp Set To " << nDV_Temp << " After Reading Mesh File for NPOIN" << endl;
 			  }
 			  else if (Kind_Train_NN == WEIGHTS) {
 				  unsigned short num_nn_inputs = 4; //Hard-coded number of neural network inputs
@@ -2250,7 +2254,8 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 					  }
 				  }
 				  nDV_Temp = num_weights;
-				  cout << "JRH Debugging: nDV_Temp Set To " << nDV_Temp << " = Number of Weights in Neural Network" << endl;
+// mskim. Delete debugging output
+//				  cout << "JRH Debugging: nDV_Temp Set To " << nDV_Temp << " = Number of Weights in Neural Network" << endl;
 				  delete [] num_inputs;
 				  delete [] num_nodes;
 			  } // <<<<< if Kind_Train_NN == WEIGHTS
@@ -2303,7 +2308,8 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 			  delete[] nDV_Value;
 
 			  //delete[] DV_Value;
-			  cout << "Starting to delete DV_Value" << endl;
+// mskim. Delete debugging output
+//			  cout << "Starting to delete DV_Value" << endl;
 			  for (unsigned long count = 0; count < nDV; count++) {
 				  delete[] DV_Value[count];
 				  delete[] ParamDV[count];
@@ -2375,7 +2381,8 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
       }
     }
     if (fiml) {
-    	cout << "JRH Debugging: Setting beta_fiml from file" << endl;
+// mskim. Delete debugging output
+//    	cout << "JRH Debugging: Setting beta_fiml from file" << endl;
     	ifstream beta_file;
     	string filename = "beta_fiml.dat";
     	string text_line;
@@ -3420,7 +3427,8 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
     SpatialOrder_AdjFlow = SECOND_ORDER;
   
   delete [] tmp_smooth;
-  cout << "JRH Debugging: Leaving Config::SetPostprocessing()" << endl;
+// mskim. Delete debugging output
+//  cout << "JRH Debugging: Leaving Config::SetPostprocessing()" << endl;
 }
 
 void CConfig::SetMarkers(unsigned short val_software) {
@@ -6341,6 +6349,19 @@ unsigned short CConfig::GetMarker_Moving(string val_marker) {
 
   return iMarker_Moving;
 }
+
+// mskim
+bool CConfig::GetMarker_Moving_Bool(string val_marker) {
+  unsigned short iMarker_Moving;
+
+  /*--- Find the marker for this moving boundary, if it exists. ---*/
+  for (iMarker_Moving = 0; iMarker_Moving < nMarker_Moving; iMarker_Moving++)
+    if (Marker_Moving[iMarker_Moving] == val_marker) return true;
+
+  return false;
+}
+
+
 
 su2double CConfig::GetDirichlet_Value(string val_marker) {
   unsigned short iMarker_Dirichlet;
