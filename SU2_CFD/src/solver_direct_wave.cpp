@@ -367,7 +367,8 @@ void CWaveSolver::Viscous_Residual(CGeometry *geometry,
 
 void CWaveSolver::BC_Euler_Wall(CGeometry *geometry, 
                                   CSolver **solver_container, 
-                                  CNumerics *numerics, 
+                                  CNumerics *conv_numerics, 
+                                  CNumerics *visc_numerics, 
                                   CConfig   *config, 
                                   unsigned short val_marker) {
   

@@ -5,7 +5,8 @@ SU2 FIML Code Axisymmety Modifided Version by M. S. Kim
 In progeress:: bug fix and validation
 
 This Branch is from SU2 FIML branch by J. Holland. <br />
-To ensure axisymmetric problem in SU2 v5.0 that has a viscous source term issue, source code was modified from SU2 v7. Some bugs in SU2 v5.0 are also fixed. 
+To ensure axisymmetric problem in SU2 v5.0 that has a viscous source term issue, source code was modified from SU2 v7. Some bugs in SU2 v5.0 are also fixed.
+To clear output log, some debugging outputs are eliminated.
 
 See below pull requests.<br />
 Viscous axisymmetric source term: https://github.com/su2code/SU2/pull/1106/commits<br />
@@ -13,7 +14,8 @@ SST 2D axisymmetric source term: https://github.com/su2code/SU2/pull/1195<br />
 SST Jacobian bug: https://github.com/su2code/SU2/pull/491<br />
 Axisymmetric source term implicit decision: https://github.com/su2code/SU2/pull/456<br />
 Viscous Jacobian sign error: https://github.com/su2code/SU2/pull/612<br />
-Viscous term bug at symmetric plane BC: https://github.com/su2code/SU2/pull/657<br />
+Symmetric and Euler BC issues: https://github.com/su2code/SU2/pull/657<br />
+                               https://github.com/su2code/SU2/pull/740<br />
 
 Add missing term to strain magnitude for 2D: https://github.com/su2code/SU2/pull/670<br />
 Periodic Green Gauss bug: https://github.com/su2code/SU2/pull/496<br />

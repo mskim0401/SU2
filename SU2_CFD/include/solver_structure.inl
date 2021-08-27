@@ -708,8 +708,12 @@ inline su2double CSolver::GetPressureRatio(unsigned short inMarkerTP) { return 0
 
 //inline short CSolver::GetNumFeatures(void) {return 0;} //JRH 02022018 - Return 0 unless called by turbulent solver that sets feature variables (SA currently)
 
-inline void CSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, 
-                   unsigned short val_marker) { }
+inline void CSolver::BC_Euler_Wall(CGeometry  *geometry,
+								   CSolver    **solver_container,
+								   CNumerics  *conv_numerics,
+								   CNumerics  *visc_numerics,
+								   CConfig    *config,
+								   unsigned short val_marker) { }
 
 inline void CSolver::BC_Clamped(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, 
                    unsigned short val_marker) { }

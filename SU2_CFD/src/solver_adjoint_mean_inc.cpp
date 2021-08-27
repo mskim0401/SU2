@@ -2560,7 +2560,9 @@ void CAdjIncEulerSolver::Smooth_Sensitivity(CGeometry *geometry, CSolver **solve
   
 }
 
-void CAdjIncEulerSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, unsigned short val_marker) {
+// mskim
+//void CAdjIncEulerSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, unsigned short val_marker) {
+void CAdjIncEulerSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
   unsigned long iVertex, iPoint;
   su2double *d = NULL, *Normal, *U, *Psi_Aux, bcn, Area, *UnitNormal;
   su2double *Velocity, *Psi, phin, phis1, phis2, DensityInc = 0.0, BetaInc2 = 0.0;

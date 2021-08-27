@@ -185,6 +185,27 @@ CDriver::CDriver(char* confFile,
   Partition_Analysis(geometry_container[ZONE_0][MESH_0], config_container[ZONE_0]);
 #endif
 
+// mskim. Check Euler & Symmetry markers
+  for (iZone = 0; iZone < nZone; iZone++) {
+
+  /*--- Check if Euler & Symmetry markers are straight/plane. This information
+        is used in the Euler & Symmetry boundary routines. ---*/
+
+    if((config_container[iZone]->GetnMarker_Euler() != 0 || 
+       config_container[iZone]->GetnMarker_SymWall() != 0)) {
+// mskim. FEM is not guranteed..?
+//	   && !fem_solver) {
+  
+      if (rank == MASTER_NODE)
+        cout << "Checking if Euler & Symmetry markers are straight/plane:" << endl;
+  
+      for (iMesh = 0; iMesh <= config_container[iZone]->GetnMGLevels(); iMesh++)
+        geometry_container[iZone][iMesh]->ComputeSurf_Straightness(config_container[iZone], (iMesh==MESH_0) );
+    }
+
+  }
+// mskim-end
+
   /*--- Output some information about the driver that has been instantiated for the problem. ---*/
 
   if (rank == MASTER_NODE)

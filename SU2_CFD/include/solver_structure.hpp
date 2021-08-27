@@ -715,18 +715,27 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   virtual void Compute_ComboObj(CConfig *config);
-  
+
+
+// mskim
   /*!
+   * \author: T. Kattmann  
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  virtual void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
+  virtual void BC_Euler_Wall(CGeometry *geometry,
+  							 CSolver **solver_container,
+							 CNumerics *conv_numerics,
+							 CNumerics *visc_numerics,
+							 CConfig *config,
                              unsigned short val_marker);
-  
+
+
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -4453,18 +4462,25 @@ public:
    */
   void Compute_ComboObj(CConfig *config);
   
+
+// mskim
   /*!
-   * \author: G.Gori, S.Vitale, M.Pini, A.Guardone, P.Colonna
+   * \author: T. Kattmann  
    *
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker);
+  void BC_Euler_Wall(CGeometry *geometry,
+  					 CSolver **solver_container,
+					 CNumerics *conv_numerics,
+					 CNumerics *visc_numerics,
+					 CConfig *config,
+                     unsigned short val_marker) override;
   
   /*!
    * \brief Impose the far-field boundary condition using characteristics.
@@ -4477,7 +4493,9 @@ public:
    */
   void BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
                     CConfig *config, unsigned short val_marker);
-  
+
+
+// mskim
   /*!
    * \brief Impose the symmetry boundary condition using the residual.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -4487,7 +4505,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
+  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
   
  /*!
   * \brief Impose the interface state across sliding meshes.
@@ -6769,19 +6787,28 @@ public:
    */
   void Set_MPI_MaxEigenvalue(CGeometry *geometry, CConfig *config);
   
+
+// mskim
   /*!
-   * \author: G.Gori, S.Vitale, M.Pini, A.Guardone, P.Colonna
+   * \author: T. Kattmann  
    *
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker);
-  
+  void BC_Euler_Wall(CGeometry *geometry,
+  					 CSolver **solver_container,
+					 CNumerics *conv_numerics,
+					 CNumerics *visc_numerics,
+					 CConfig *config,
+                     unsigned short val_marker) override;
+
+
+
   /*!
    * \brief Impose the far-field boundary condition using characteristics.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -6793,7 +6820,8 @@ public:
    */
   void BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
                     CConfig *config, unsigned short val_marker);
-  
+
+// mskim
   /*!
    * \brief Impose the symmetry boundary condition using the residual.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -6803,7 +6831,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
+  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
   
   /*!
    * \brief Impose a subsonic inlet boundary condition.
@@ -8537,6 +8565,7 @@ public:
   void Viscous_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
                         CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
+// mskim  
   /*!
    * \brief Impose the Symmetry Plane boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -8546,19 +8575,28 @@ public:
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
-  
+  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
+
+// mskim
   /*!
+   * \author: T. Kattmann  
+   *
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker);
-  
+  void BC_Euler_Wall(CGeometry *geometry,
+  					 CSolver **solver_container,
+					 CNumerics *conv_numerics,
+					 CNumerics *visc_numerics,
+					 CConfig *config,
+                     unsigned short val_marker) override;
+
+
   /*!
    * \brief Update the solution using an implicit solver.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -9157,7 +9195,7 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
   void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
-                    unsigned short val_marker);
+                    unsigned short val_marker) override;
   /*!
    * \brief Update the solution using an implicit solver.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -9466,17 +9504,26 @@ public:
    */
   void Set_MPI_Dissipation_Switch(CGeometry *geometry, CConfig *config);
   
+// mskim
   /*!
-   * \brief Impose via the residual the adjoint Euler wall boundary condition.
+   * \author: T. Kattmann  
+   *
+   * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker);
-  
+  void BC_Euler_Wall(CGeometry *geometry,
+  					 CSolver **solver_container,
+					 CNumerics *conv_numerics,
+					 CNumerics *visc_numerics,
+					 CConfig *config,
+                     unsigned short val_marker) override;
+
+
   /*!
    * \brief Impose the interface boundary condition using the residual.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -9535,6 +9582,7 @@ public:
   void BC_ActDisk(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
                   CConfig *config, unsigned short val_marker, bool inlet_surface);
 
+// mskim
   /*!
    * \brief Impose via the residual the adjoint symmetry boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -9545,7 +9593,7 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
   void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
-                    unsigned short val_marker);
+                    unsigned short val_marker) override;
   
   /*!
    * \brief Impose the boundary condition to the far field using characteristics.
@@ -9982,17 +10030,26 @@ public:
    */
   void Set_MPI_Dissipation_Switch(CGeometry *geometry, CConfig *config);
   
+// mskim
   /*!
-   * \brief Impose via the residual the adjoint Euler wall boundary condition.
+   * \author: T. Kattmann  
+   *
+   * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker);
-  
+  void BC_Euler_Wall(CGeometry *geometry,
+  					 CSolver **solver_container,
+					 CNumerics *conv_numerics,
+					 CNumerics *visc_numerics,
+					 CConfig *config,
+                     unsigned short val_marker) override;
+
+
   /*!
    * \brief Impose via the residual the interface adjoint boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -10025,7 +10082,7 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
   void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
-                    unsigned short val_marker);
+                    unsigned short val_marker) override;
   
   /*!
    * \brief Impose the boundary condition to the far field using characteristics.
@@ -10748,17 +10805,26 @@ public:
   void Viscous_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
                         unsigned short iMesh, unsigned short iRKStep);
   
+// mskim
   /*!
+   * \author: T. Kattmann  
+   *
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker);
-  
+  void BC_Euler_Wall(CGeometry *geometry,
+  					 CSolver **solver_container,
+					 CNumerics *conv_numerics,
+					 CNumerics *visc_numerics,
+					 CConfig *config,
+                     unsigned short val_marker) override;
+
+
   /*!
    * \brief Impose a Dirichlet boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -11591,17 +11657,26 @@ public:
   void Source_Template(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
                        CConfig *config, unsigned short iMesh);
   
+// mskim
   /*!
+   * \author: T. Kattmann  
+   *
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker);
-  
+  void BC_Euler_Wall(CGeometry *geometry,
+  					 CSolver **solver_container,
+					 CNumerics *conv_numerics,
+					 CNumerics *visc_numerics,
+					 CConfig *config,
+                     unsigned short val_marker) override;
+
+
   /*!
    * \brief Impose the Navier-Stokes boundary condition (strong).
    * \param[in] geometry - Geometrical definition of the problem.
@@ -11660,7 +11735,7 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
   void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
-                    unsigned short val_marker);
+                    unsigned short val_marker) override;
   
   /*!
    * \brief Impose the dirichlet boundary condition.
