@@ -109,16 +109,20 @@ int main(int argc, char *argv[]) {
     driver = new CFluidDriver(config_file_name, nZone, nDim, MPICommunicator);
 
   }
-  cout << "JRH Debugging - Back in SU2_CFD from instantiating driver" << endl;
+// mskim. Delete debug message
+//  cout << "JRH Debugging - Back in SU2_CFD from instantiating driver" << endl;
   //if (config->GetKind_Turb_Model() != SA_FIML) {
   delete config; //JRH - causing segmentation for some reason?? with FIML problem ??
   //}
   //else cout << "JRH Warning - Not Deleting config because it causes an unknown segmentation fault at runtime for FIML problem (SU2_CFD.cpp)" << endl;
-  cout << "JRH Debugging - Done deleting config" << endl;
+
+// mskim. Delete debug message
+//  cout << "JRH Debugging - Done deleting config" << endl;
   config = NULL;
 
   /*--- Launch the main external loop of the solver ---*/
-  cout << "JRH Debugging - Calling StartSolver (main external loop) From SU2_CFD.cpp" << endl;
+// mskim. Delete debug message
+//  cout << "JRH Debugging - Calling StartSolver (main external loop) From SU2_CFD.cpp" << endl;
   driver->StartSolver();
   
   /*--- Postprocess all the containers, close history file, exit SU2 ---*/

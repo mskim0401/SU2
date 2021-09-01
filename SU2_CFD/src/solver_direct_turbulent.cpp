@@ -3720,8 +3720,14 @@ void CTurbSASolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, CN
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       
       /*--- Viscous contribution ---*/
-      
-      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+// mskim
+//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+      su2double Coord_Reflected[nDim];
+      geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                        geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
       visc_numerics->SetNormal(Normal);
       
       /*--- Conservative variables w/o reconstruction ---*/
@@ -3818,7 +3824,14 @@ void CTurbSASolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container, C
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       
       /*--- Viscous contribution ---*/
-      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+// mskim	  
+//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+      su2double Coord_Reflected[nDim];
+      geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                        geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
       visc_numerics->SetNormal(Normal);
       
       /*--- Conservative variables w/o reconstruction ---*/
@@ -3901,7 +3914,7 @@ void CTurbSASolver::BC_Engine_Inflow(CGeometry *geometry, CSolver **solver_conta
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       
       /*--- Viscous contribution ---*/
-      
+// mskim. Is Point_Normal needed?
       visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
       visc_numerics->SetNormal(Normal);
       
@@ -3990,7 +4003,7 @@ void CTurbSASolver::BC_Engine_Exhaust(CGeometry *geometry, CSolver **solver_cont
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       
       /*--- Viscous contribution ---*/
-      
+// mskim. Is Point_Normal needed?      
       visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
       visc_numerics->SetNormal(Normal);
       
@@ -4157,8 +4170,15 @@ void CTurbSASolver::BC_ActDisk(CGeometry *geometry, CSolver **solver_container, 
         /*--- Viscous contribution ---*/
         
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint_Normal]->GetCoord());
-        
+// mskim		
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[iPoint_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
+
         /*--- Conservative variables w/o reconstruction ---*/
         
         if (inlet_surface) visc_numerics->SetPrimitive(V_domain, V_inlet);
@@ -5205,7 +5225,14 @@ void CTurbSSTSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, C
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       
       /*--- Viscous contribution ---*/
-      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+// mskim	  
+//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+      su2double Coord_Reflected[nDim];
+      geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                        geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
       visc_numerics->SetNormal(Normal);
       
       /*--- Conservative variables w/o reconstruction ---*/
@@ -5291,7 +5318,14 @@ void CTurbSSTSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container, 
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       
       /*--- Viscous contribution ---*/
-      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+// mskim	  
+//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+      su2double Coord_Reflected[nDim];
+      geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                        geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
       visc_numerics->SetNormal(Normal);
       
       /*--- Conservative variables w/o reconstruction ---*/

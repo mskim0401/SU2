@@ -10632,9 +10632,15 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
         /*--- Set the normal vector and the coordinates ---*/
         
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
-                                geometry->node[Point_Normal]->GetCoord());
-        
+// mskim
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
+//                                geometry->node[Point_Normal]->GetCoord());
+		su2double Coord_Reflected[nDim];
+		geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+										   geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
         /*--- Primitive variables, and gradient ---*/
         
         visc_numerics->SetPrimitive(V_domain, V_infty);
@@ -11147,8 +11153,16 @@ void CEulerSolver::BC_Riemann(CGeometry *geometry, CSolver **solver_container,
         
         /*--- Set the normal vector and the coordinates ---*/
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-        
+
+// mskim
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
+
         /*--- Primitive variables, and gradient ---*/
         visc_numerics->SetPrimitive(V_domain, V_boundary);
         visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
@@ -12293,8 +12307,16 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
         /*--- Set the normal vector and the coordinates ---*/
         
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-        
+
+// mskim
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
+
         /*--- Primitive variables, and gradient ---*/
         
         visc_numerics->SetPrimitive(V_domain, V_inlet);
@@ -12470,8 +12492,15 @@ void CEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
         
         /*--- Set the normal vector and the coordinates ---*/
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-        
+
+// mskim
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
         /*--- Primitive variables, and gradient ---*/
         visc_numerics->SetPrimitive(V_domain, V_outlet);
         visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
@@ -12610,8 +12639,14 @@ void CEulerSolver::BC_Supersonic_Inlet(CGeometry *geometry, CSolver **solver_con
         /*--- Set the normal vector and the coordinates ---*/
         
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-        
+// mskim		
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
         /*--- Primitive variables, and gradient ---*/
         
         visc_numerics->SetPrimitive(V_domain, V_inlet);
@@ -12729,7 +12764,13 @@ void CEulerSolver::BC_Supersonic_Outlet(CGeometry *geometry, CSolver **solver_co
         /*--- Set the normal vector and the coordinates ---*/
         
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+// mskim		
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
         
         /*--- Primitive variables, and gradient ---*/
         
@@ -12947,8 +12988,14 @@ void CEulerSolver::BC_Engine_Inflow(CGeometry *geometry, CSolver **solver_contai
         /*--- Set the normal vector and the coordinates ---*/
         
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-        
+// mskim		
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
         /*--- Primitive variables, and gradient ---*/
         
         visc_numerics->SetPrimitive(V_domain, V_inflow);
@@ -13198,8 +13245,14 @@ void CEulerSolver::BC_Engine_Exhaust(CGeometry *geometry, CSolver **solver_conta
         /*--- Set the normal vector and the coordinates ---*/
         
         visc_numerics->SetNormal(Normal);
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-        
+// mskim		
+//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
+        su2double Coord_Reflected[nDim];
+        geometry->PointPointReflect(nDim, geometry->node[Point_Normal]->GetCoord(),
+                                          geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
         /*--- Primitive variables, and gradient ---*/
         
         visc_numerics->SetPrimitive(V_domain, V_exhaust);
@@ -14309,7 +14362,14 @@ void CEulerSolver::BC_ActDisk(CGeometry *geometry, CSolver **solver_container, C
                     /*--- Set the normal vector and the coordinates ---*/
 
                     visc_numerics->SetNormal(Normal);
-                    visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint_Normal]->GetCoord());
+// mskim					
+//                    visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint_Normal]->GetCoord());
+                    su2double Coord_Reflected[nDim];
+    		        geometry->PointPointReflect(nDim, geometry->node[iPoint_Normal]->GetCoord(),
+                                                      geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+   		            visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), Coord_Reflected);
+
+
 
                     /*--- Primitive variables, and gradient ---*/
 

@@ -633,6 +633,10 @@ public:
   void ComputeSurf_Straightness(CConfig *config, 
                                  bool    print_on_screen);
 
+// mskim
+  void PointPointReflect(int nDim, const su2double *a, const su2double *b, su2double *d);
+
+
 	/*!
 	 * \brief Find and store all vertices on a sharp corner in the geometry.
 	 * \param[in] config - Definition of the particular problem.

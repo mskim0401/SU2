@@ -1059,6 +1059,11 @@ void CGeometry::ComputeSurf_Straightness(CConfig *config,
 }
 // mskim-end
 
+// mskim
+void CGeometry::PointPointReflect(int nDim, const su2double *a, const su2double *b, su2double* d){
+  for(int i = 0; i < nDim; i++) d[i] = 2*b[i] - a[i];
+}
+
 void CGeometry::ComputeSurf_Curvature(CConfig *config) {
   unsigned short iMarker, iNeigh_Point, iDim, iNode, iNeighbor_Nodes, Neighbor_Node;
   unsigned long Neighbor_Point, iVertex, iPoint, jPoint, iElem_Bound, iEdge, nLocalVertex, MaxLocalVertex , *Buffer_Send_nVertex, *Buffer_Receive_nVertex, TotalnPointDomain;
