@@ -19,7 +19,7 @@ Turbulent viscosity calculation in SST: https://github.com/su2code/SU2/pull/905<
 
 Add missing term to strain magnitude for 2D: https://github.com/su2code/SU2/pull/670<br />
 Periodic Green Gauss bug: https://github.com/su2code/SU2/pull/496<br />
-Incompressible outlet BC and 'Set_MPI_AxiAuxVar_Gradient': SU2 v6
+Incompressible outlet BC and 'Set_MPI_AxiAuxVar_Gradient': SU2 v6<br />
 Fixed Coord_j for boundary viscous numerics: https://github.com/su2code/SU2/pull/1189<br />
 
 Currently, only compressible flow is guaranteed.
