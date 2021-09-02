@@ -4695,8 +4695,10 @@ class CSourceAxisymmetric_Flow : public CNumerics {
 
 // mskim
 protected:
-  bool implicit, viscous, rans;
+  bool implicit, viscous, rans, compressible, incompressible;
   su2double yinv{0.0};
+
+// Is is needed?
 //  su2double* val_residual = nullptr;
 //  su2double** Jacobian_i = nullptr;
 
@@ -4725,9 +4727,12 @@ public:
   /*!
    * \brief Residual of the axisymmetric frame source term.
    * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
    * \param[in] config - Definition of the particular problem.
    */
-  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+// mskim Jacobian?
+//  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config);
   
 };
 
@@ -4750,7 +4755,8 @@ public:
    */
 
 // from CSourceAxisymmetric_Flow
-  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+//  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config);
 
 // mskim, version 7 type
 
@@ -4783,9 +4789,12 @@ public:
   /*!
    * \brief Residual of the rotational frame source term.
    * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
    * \param[in] config - Definition of the particular problem.
    */
-  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+// mskim  
+//  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config);
 };
 
 /*!

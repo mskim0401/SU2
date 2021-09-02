@@ -9,7 +9,8 @@ To ensure axisymmetric problem in SU2 v5.0 that has a viscous source term issue,
 To clear output log, some debugging outputs are eliminated.
 
 See below pull requests.<br />
-Viscous axisymmetric source term: https://github.com/su2code/SU2/pull/1106/commits<br />
+Viscous axisymmetric source term: https://github.com/su2code/SU2/pull/1106/<br />
+Axisymmetric source term bug in energy equation: https://github.com/su2code/SU2/pull/1366<br />
 SST 2D axisymmetric source term: https://github.com/su2code/SU2/pull/1195<br />
 SST Jacobian bug: https://github.com/su2code/SU2/pull/491<br />
 Axisymmetric source term implicit decision: https://github.com/su2code/SU2/pull/456<br />

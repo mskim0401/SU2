@@ -463,7 +463,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   nMarker      = config->GetnMarker_All();
   nPoint       = geometry->GetnPoint();
   nPointDomain = geometry->GetnPointDomain();
- 
+
   /*--- Store the number of vertices on each marker for deallocation later ---*/
 
   nVertex = new unsigned long[nMarker];
@@ -5081,7 +5081,7 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
   const bool ideal_gas        = (config->GetKind_FluidModel() == STANDARD_AIR) ||
                                 (config->GetKind_FluidModel() == IDEAL_GAS);
   const bool rans             = (config->GetKind_Turb_Model() != NONE);
-  
+
   /*--- Initialize the source residual to zero ---*/
   for (iVar = 0; iVar < nVar; iVar++) Residual[iVar] = 0.0;
   
@@ -5110,19 +5110,19 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
   }
   
   if (axisymmetric) {
-    
+
+// mskim. Is it needed?
     /*--- Zero out Jacobian structure ---*/
-    if (implicit) {
-      for (iVar = 0; iVar < nVar; iVar ++)
-        for (unsigned short jVar = 0; jVar < nVar; jVar ++)
-          Jacobian_i[iVar][jVar] = 0.0;
-    }
+//    if (implicit) {
+//      for (iVar = 0; iVar < nVar; iVar ++)
+//        for (unsigned short jVar = 0; jVar < nVar; jVar ++)
+//          Jacobian_i[iVar][jVar] = 0.0;
+//    }
 
 // mskim
     /*--- For viscous problems, we need an additional gradient. ---*/
 	if (viscous) {
-
-      for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
         su2double yCoord          = geometry->node[iPoint]->GetCoord(1);
         su2double yVelocity       = node[iPoint]->GetVelocity(1);
