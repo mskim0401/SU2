@@ -41,7 +41,7 @@ CEulerVariable::CEulerVariable(void) : CVariable() {
     Primitive = NULL;
     Secondary = NULL;
     
-  Gradient_Primitive = NULL;
+    Gradient_Primitive = NULL;
     Gradient_Secondary = NULL;
   
     Limiter_Primitive = NULL;
@@ -62,9 +62,7 @@ CEulerVariable::CEulerVariable(void) : CVariable() {
   beta_fiml_train = 1.0;
  
 // mskim
-  nAuxVar = 0;
-//  AuxVar = NULL;
-//  Grad_AuxVar = NULL;
+  nAxiAuxVar = 3;
   AxiAuxVar = NULL;
   Grad_AxiAuxVar = NULL;
 
@@ -108,8 +106,7 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
   Undivided_Laplacian = NULL;
 
 // mskim
-//  AuxVar = NULL;
-//  Grad_AuxVar = NULL;
+  nAxiAuxVar = 3;
   AxiAuxVar = NULL;
   Grad_AxiAuxVar = NULL;
 
@@ -232,13 +229,13 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
   }
 
 // mskim, is it work..?
-  nAuxVar = 3;
+  nAxiAuxVar = 3;
   if (config->GetAxisymmetric()) {
-	AxiAuxVar = new su2double [nAuxVar];
-	for (iVar = 0; iVar < nAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
+	AxiAuxVar = new su2double [nAxiAuxVar];
+	for (iVar = 0; iVar < nAxiAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
 
-	Grad_AxiAuxVar = new su2double* [nAuxVar];
-    for (iVar = 0; iVar < nAuxVar; iVar++) {
+	Grad_AxiAuxVar = new su2double* [nAxiAuxVar];
+    for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
       Grad_AxiAuxVar[iVar] = new su2double [nDim];
       for (iDim = 0; iDim < nDim; iDim++)
         Grad_AxiAuxVar[iVar][iDim] = 0.0;
@@ -306,9 +303,7 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
   Undivided_Laplacian = NULL;
  
 // mskim
-//  AuxVar = NULL;
-//  Grad_AuxVar = NULL;
-  nAuxVar = 0;
+  nAxiAuxVar = 3;
   AxiAuxVar = NULL;
   Grad_AxiAuxVar = NULL;
 
@@ -415,13 +410,13 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
   }
 
 // mskim, is it work..?
-  nAuxVar = 3;
+  nAxiAuxVar = 3;
   if (config->GetAxisymmetric()) {
-    AxiAuxVar = new su2double [nAuxVar];
-    for (iVar = 0; iVar < nAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
+    AxiAuxVar = new su2double [nAxiAuxVar];
+    for (iVar = 0; iVar < nAxiAuxVar; iVar++) AxiAuxVar[iVar] = 0.0;
 
-	Grad_AxiAuxVar = new su2double* [nAuxVar];
-    for (iVar = 0; iVar < nAuxVar; iVar++) {
+	Grad_AxiAuxVar = new su2double* [nAxiAuxVar];
+    for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
       Grad_AxiAuxVar[iVar] = new su2double [nDim];
       for (iDim = 0; iDim < nDim; iDim++)
         Grad_AxiAuxVar[iVar][iDim] = 0.0;
@@ -455,13 +450,13 @@ CEulerVariable::~CEulerVariable(void) {
   if (Undivided_Laplacian != NULL) delete [] Undivided_Laplacian;
 
 // mskim
-  if (AxiAuxVar       != NULL) delete [] AxiAuxVar;
- // nAuxVar = 3;
-  if (Grad_AxiAuxVar  != NULL) {
-    for (iVar = 0; iVar < nAuxVar; iVar++)
-	  if (Grad_AxiAuxVar != NULL) delete [] Grad_AxiAuxVar[iVar];
-	delete [] Grad_AxiAuxVar;
-  }
+//  if (AxiAuxVar       != NULL) delete [] AxiAuxVar;
+// // nAuxVar = 3;
+//  if (Grad_AxiAuxVar  != NULL) {
+//    for (iVar = 0; iVar < nAuxVar; iVar++)
+//	  if (Grad_AxiAuxVar[iVar] != NULL) delete [] Grad_AxiAuxVar[iVar];
+//	delete [] Grad_AxiAuxVar;
+//  }
   
 }
 

@@ -4156,7 +4156,9 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
         Velocity_i = U_i[iDim+1] / U_i[0];
         sq_vel += Velocity_i *Velocity_i;
       }
-      
+
+// U_i = conservative variables : rho, rho*u, rho*v, rho*w, rho*e
+// V_i = primitive variables : T, u, v, w, P, rho, h, ...
       Pressure_i = (Gamma-1.0)*U_i[0]*(U_i[nDim+1]/U_i[0]-0.5*sq_vel);
       Enthalpy_i = (U_i[nDim+1] + Pressure_i) / U_i[0];
       

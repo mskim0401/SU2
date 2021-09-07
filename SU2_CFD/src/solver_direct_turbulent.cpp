@@ -4897,6 +4897,12 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     dist = geometry->node[iPoint]->GetWall_Distance();
     
     strMag = solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag();
+// mskim. PR#905. S -> W
+    su2double *Vorticity = solver_container[FLOW_SOL]->node[iPoint]->GetVorticity();
+    su2double VorticityMag = sqrt(Vorticity[0]*Vorticity[0] +
+                                  Vorticity[1]*Vorticity[1] +
+                                  Vorticity[2]*Vorticity[2]);
+
 
     node[iPoint]->SetBlendingFunc(mu, dist, rho);
     
@@ -4906,7 +4912,9 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     
     kine  = node[iPoint]->GetSolution(0);
     omega = node[iPoint]->GetSolution(1);
-    zeta = min(1.0/omega, a1/(strMag*F2));
+// mskim. PR#905. S -> W
+//    zeta = min(1.0/omega, a1/(strMag*F2));
+    zeta = min(1.0/omega, a1/(VorticityMag*F2));
     muT = min(max(rho*kine*zeta,0.0),1.0);
     node[iPoint]->SetmuT(muT);
     

@@ -4369,6 +4369,8 @@ private:
     su2double sigma_k_i, sigma_w_i;
     su2double pk_axi, pw_axi, cdk_axi, cdw_axi;
 
+    AD::SetPreaccIn(Coord_i[1]);
+
     yinv = 1.0/Coord_i[1];
     rhov = Density_i*V_i[2];
     k = TurbVar_i[0];
@@ -4386,23 +4388,9 @@ private:
     cdk_axi = rhov*k-(Laminar_Viscosity_i+sigma_k_i*Eddy_Viscosity_i)*TurbVar_Grad_i[0][1];
     cdw_axi = rhov*w-(Laminar_Viscosity_i+sigma_w_i*Eddy_Viscosity_i)*TurbVar_Grad_i[1][1];
 
-	// mskim Debug dummy
-    //cout << "cdk_axi = " << cdk_axi << " in numerics_structure.hpp(before)" << endl;
-	//cout << "cdw_axi = " << cdw_axi << " in numerics_structure.hpp(before)" << endl;
-    //cout << "val_residual[0] = " << val_residual[0] << " in numerics_structure.hpp(before)" << endl;
-    //cout << "val_residual[1] = " << val_residual[1] << " in numerics_structure.hpp(before)" << endl;
-	//su2double mskim_value_0, mskim_value_1;
-	//mskim_value_0 = yinv*Volume*(pk_axi-cdk_axi);
-	//mskim_value_1 = yinv*Volume*(pw_axi-cdw_axi);
-    //cout << "mskim_value_0     = " << mskim_value_0 << " in numerics_structure.hpp(before)" << endl;
-    //cout << "mskim_value_1     = " << mskim_value_1 << " in numerics_structure.hpp(before)" << endl;
-
     /*--- Add terms to the residuals ---*/
     val_residual[0] += yinv*Volume*(pk_axi-cdk_axi);
     val_residual[1] += yinv*Volume*(pw_axi-cdw_axi);
-    
-	//cout << "val_residual[0] = " << val_residual[0] << " in numerics_structure.hpp(after)" << endl;
-	//cout << "val_residual[1] = " << val_residual[1] << " in numerics_structure.hpp(after)" << endl;
 
   }
 // mskim-end
@@ -4732,7 +4720,7 @@ public:
    */
 // mskim Jacobian?
 //  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config) override;
   
 };
 
@@ -4756,7 +4744,7 @@ public:
 
 // from CSourceAxisymmetric_Flow
 //  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config) override;
 
 // mskim, version 7 type
 
@@ -4794,7 +4782,7 @@ public:
    */
 // mskim  
 //  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config) override;
 };
 
 /*!
@@ -4855,7 +4843,7 @@ public:
    * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
    * \param[in] config - Definition of the particular problem.
    */
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config) override;
   
   /*!
    * \brief Destructor of the class.

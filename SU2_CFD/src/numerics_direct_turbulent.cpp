@@ -1332,8 +1332,8 @@ CSourcePieceWise_TurbSST::CSourcePieceWise_TurbSST(unsigned short val_nDim, unsi
   beta_2        = constants[5];
   beta_star     = constants[6];
   a1            = constants[7];
-  alfa_1        = constants[8];
-  alfa_2        = constants[9];
+  alfa_1        = constants[8]; // gamma_1
+  alfa_2        = constants[9]; // gamma_2
 
 }
 

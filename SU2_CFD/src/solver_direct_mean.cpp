@@ -5127,8 +5127,8 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
         su2double yCoord          = geometry->node[iPoint]->GetCoord(1);
         su2double yVelocity       = node[iPoint]->GetVelocity(1);
         su2double xVelocity       = node[iPoint]->GetVelocity(0);
-        su2double Total_Viscosity = node[iPoint]->GetLaminarViscosity() 
-								  + node[iPoint]->GetEddyViscosity();
+        su2double Total_Viscosity = (node[iPoint]->GetLaminarViscosity() +
+								     node[iPoint]->GetEddyViscosity());
 		su2double AxiAuxVar[3] = {0.0};
 
         if (yCoord > EPS){

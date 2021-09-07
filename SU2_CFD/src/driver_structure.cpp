@@ -931,14 +931,14 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
         delete solver_container[iMGlevel][ADJTURB_SOL];
       }
     }
-    cout << "mskim Debug:: Attempt to DeAllocate Solution for Direct" << endl;
+//    cout << "mskim Debug:: Attempt to DeAllocate Solution for Direct" << endl;
 
     /*--- DeAllocate solution for direct problem ---*/
     
     if (euler || ns) {
       delete solver_container[iMGlevel][FLOW_SOL];
     }
-    cout << "mskim Debug:: Complete! Deallocate Solution for Direct" << endl;
+//    cout << "mskim Debug:: Complete! Deallocate Solution for Direct" << endl;
 
     if (turbulent) {
       if (spalart_allmaras || neg_spalart_allmaras || menter_sst || fiml_spalart_allmaras) {

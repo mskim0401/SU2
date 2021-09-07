@@ -48,6 +48,8 @@ CVariable::CVariable(void) {
   Solution_Min = NULL;
   Grad_AuxVar = NULL;
 // mskim
+  nAxiAuxVar = 3;
+  AxiAuxVar = NULL;
   Grad_AxiAuxVar = NULL;
 
   Undivided_Laplacian = NULL;
@@ -70,6 +72,8 @@ CVariable::CVariable(unsigned short val_nvar, CConfig *config) {
   Solution_Min = NULL;
   Grad_AuxVar = NULL;
 // mskim
+  nAxiAuxVar = 3;
+  AxiAuxVar = NULL;
   Grad_AxiAuxVar = NULL;
 
   Undivided_Laplacian = NULL;
@@ -106,6 +110,8 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
   Solution_Min = NULL;
   Grad_AuxVar = NULL;
 // mskim
+  nAxiAuxVar = 3;
+  AxiAuxVar = NULL;
   Grad_AxiAuxVar = NULL;
 
   Undivided_Laplacian = NULL;
@@ -141,12 +147,16 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
   }
   
   // mskim
-  /*--- Allocate auxiliar vector for sensitivity computation ---*/
-  Grad_AxiAuxVar = new su2double* [3];
-	for (iVar = 0; iVar < 3; iVar++) {
-	  Grad_AxiAuxVar[iVar] = new su2double [nDim];
-	  for (iDim = 0; iDim < nDim; iDim++)
-	    Grad_AxiAuxVar[iVar][iDim] = 0.0;
+//  /*--- Allocate auxiliar vector for sensitivity computation ---*/
+  if (config->GetAxisymmetric()) {
+    nAxiAuxVar = 3;
+    AxiAuxVar = new su2double [nAxiAuxVar];
+    Grad_AxiAuxVar = new su2double* [nAxiAuxVar];
+  	for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
+  	  Grad_AxiAuxVar[iVar] = new su2double [nDim];
+  	  for (iDim = 0; iDim < nDim; iDim++)
+  	    Grad_AxiAuxVar[iVar][iDim] = 0.0;
+    }
   }
   // mskim-end
 
@@ -167,11 +177,12 @@ CVariable::~CVariable(void) {
   if (Solution_Min        != NULL) delete [] Solution_Min;
   if (Grad_AuxVar         != NULL) delete [] Grad_AuxVar;
   // mskim
-//  if (Grad_AxiAuxVar      != NULL) {
-//    for (iVar = 0; iVar < 3; iVar++)
-//      if (Grad_AxiAuxVar  != NULL) delete [] Grad_AxiAuxVar[iVar];
-//    delete [] Grad_AxiAuxVar;
-//  }
+  if (AxiAuxVar           != NULL) delete [] AxiAuxVar;
+  if (Grad_AxiAuxVar      != NULL) {
+    for (iVar = 0; iVar < 3; iVar++)
+      if (Grad_AxiAuxVar[iVar]  != NULL) delete [] Grad_AxiAuxVar[iVar];
+    delete [] Grad_AxiAuxVar;
+  }
 
   //if (Undivided_Laplacian != NULL) delete [] Undivided_Laplacian; // Need to break pointer dependence btwn CNumerics and CVariable
   if (Res_TruncError      != NULL) delete [] Res_TruncError;

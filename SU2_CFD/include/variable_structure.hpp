@@ -71,7 +71,7 @@ protected:
 // mskim
   su2double *AxiAuxVar;      /*!< \brief axisymmetric Auxiliar variable for gradient computation. */
   su2double **Grad_AxiAuxVar;  /*!< \brief Gradient of the axisymmetric auxiliar variable. */
-
+  unsigned short nAxiAuxVar;
 
 
   su2double Delta_Time;  /*!< \brief Time step. */
@@ -418,7 +418,7 @@ public:
    * \brief Set axisymmetric auxiliar variables.
    * \param[in] axiauxvar - Value of the auxiliar variable.
    */
-  inline void SetAxiAuxVar(su2double *axiauxvar) {
+  inline void SetAxiAuxVar(su2double* axiauxvar) {
     for (unsigned long iVar = 0; iVar < 3; iVar++) AxiAuxVar[iVar] = axiauxvar[iVar]; 
   }
 
@@ -426,14 +426,14 @@ public:
    * \brief Get the entire axi aux vector of the problem.
    * \return Reference to the axi aux matrix.
    */
-  inline su2double *GetAxiAuxVar(void) { return AxiAuxVar; } 
+  inline su2double* GetAxiAuxVar(void) { return AxiAuxVar; } 
 
   inline void SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value) { Grad_AxiAuxVar[val_var][val_dim] = value; }
 
-// It is naybe not used...
+// It is maybe not used...
   inline su2double GetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim) { return Grad_AxiAuxVar[val_var][val_dim]; }
 
-  inline su2double **GetAxiAuxVarGradient(void) { return Grad_AxiAuxVar; }
+  inline su2double** GetAxiAuxVarGradient(void) { return Grad_AxiAuxVar; }
 // mskim-end
 
 
