@@ -4203,7 +4203,48 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
 
     /*--- Add the viscous terms if necessary. ---*/
 //    if (viscous) ResidualDiffusion();
-    if (viscous) ResidualDiffusion(val_residual, config);
+//    if (viscous) ResidualDiffusion(val_residual, config);
+    if (viscous) {
+ 
+      if (!rans){ turb_ke_i = 0.0; }
+    
+    // mskim. nDim+5 ... is for compressible
+      su2double laminar_viscosity_i    = V_i[nDim+5];
+      su2double eddy_viscosity_i       = V_i[nDim+6];
+      su2double thermal_conductivity_i = V_i[nDim+7];
+      su2double heat_capacity_cp_i     = V_i[nDim+8];
+    
+      su2double total_viscosity_i = laminar_viscosity_i + eddy_viscosity_i;
+      su2double total_conductivity_i = thermal_conductivity_i + heat_capacity_cp_i*eddy_viscosity_i/Prandtl_Turb;
+    
+      su2double u = U_i[1]/U_i[0];
+      su2double v = U_i[2]/U_i[0];
+
+      if (compressible) {
+        val_residual[0] -= 0.0;
+        val_residual[1] -= Volume*(yinv*total_viscosity_i*(PrimVar_Grad_i[1][1]+PrimVar_Grad_i[2][0])
+                               -TWO3*AxiAuxVar_Grad_i[0][0]);
+        val_residual[2] -= Volume*(yinv*total_viscosity_i*2*(PrimVar_Grad_i[2][1]-v*yinv)
+                               -TWO3*AxiAuxVar_Grad_i[0][1]);
+        val_residual[3] -= Volume*(yinv*(total_viscosity_i*(u*(PrimVar_Grad_i[2][0]+PrimVar_Grad_i[1][1])
+                                                   +v*TWO3*(2*PrimVar_Grad_i[2][1]-PrimVar_Grad_i[1][0]
+                                                                 -v*yinv+U_i[0]*turb_ke_i))
+                                         -total_conductivity_i*PrimVar_Grad_i[0][1])
+                                   -TWO3*(AxiAuxVar_Grad_i[1][1]+AxiAuxVar_Grad_i[2][0]));    
+	  }
+
+      // mskim. This is dummy code. Incompressible is not guranteed
+      else if (incompressible) {
+        val_residual[0] -= 0.0;
+        val_residual[1] -= Volume*(yinv*tau[0][1] - TWO3*AxiAuxVar_Grad_i[0][0]);
+        val_residual[2] -= Volume*(yinv*2.0*total_viscosity_i*PrimVar_Grad_i[2][1] -
+                               yinv* yinv*2.0*total_viscosity_i*U_i[2] -
+                               TWO3*AxiAuxVar_Grad_i[0][1]);
+    	// PrimVar_Grad_i... is it right?
+        val_residual[3] -= Volume*yinv*thermal_conductivity_i*PrimVar_Grad_i[nDim+1][1];
+      }
+
+    }
 
   }
 

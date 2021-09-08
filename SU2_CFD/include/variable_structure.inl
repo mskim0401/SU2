@@ -192,6 +192,34 @@ inline su2double *CVariable::GetAuxVarGradient(void) { return Grad_AuxVar; }
 
 inline su2double CVariable::GetAuxVarGradient(unsigned short val_dim) { return Grad_AuxVar[val_dim]; }
 
+// mskim - CVariable
+inline void CVariable::SetAxiAuxVar(su2double* axiauxvar) {
+  for (unsigned long iVar = 0; iVar < 3; iVar++) AxiAuxVar[iVar] = axiauxvar[iVar]; 
+}
+
+inline su2double* CVariable::GetAxiAuxVar() { return AxiAuxVar; } 
+
+inline su2double** CVariable::GetAxiAuxVarGradient() { return Grad_AxiAuxVar; }
+
+inline void CVariable::SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value) { Grad_AxiAuxVar[val_var][val_dim] = value; }
+// mskim-end
+
+
+// mskim - CEulerVariable
+inline void CEulerVariable::SetAxiAuxVar(su2double* axiauxvar) {
+  for (unsigned long iVar = 0; iVar < 3; iVar++) AxiAuxVar[iVar] = axiauxvar[iVar]; 
+}
+
+inline su2double* CEulerVariable::GetAxiAuxVar() { return AxiAuxVar; } 
+
+inline su2double** CEulerVariable::GetAxiAuxVarGradient() { return Grad_AxiAuxVar; }
+
+inline void CEulerVariable::SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value) { Grad_AxiAuxVar[val_var][val_dim] = value; }
+// mskim-end
+
+
+
+
 inline su2double *CVariable::GetResTruncError(void) { return Res_TruncError; }
 
 inline void CVariable::SetDelta_Time(su2double val_delta_time) { Delta_Time = val_delta_time; }

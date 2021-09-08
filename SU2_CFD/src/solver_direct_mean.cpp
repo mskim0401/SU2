@@ -5129,7 +5129,10 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
         su2double xVelocity       = node[iPoint]->GetVelocity(0);
         su2double Total_Viscosity = (node[iPoint]->GetLaminarViscosity() +
 								     node[iPoint]->GetEddyViscosity());
-		su2double AxiAuxVar[3] = {0.0};
+		su2double AxiAuxVar [3];
+        for (iVar = 0; iVar < 3; iVar++) {
+          AxiAuxVar[iVar] = 0.0;
+		}
 
         if (yCoord > EPS){
           su2double nu_v_on_y = Total_Viscosity*yVelocity/yCoord;
@@ -5170,7 +5173,7 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 
 // mskim
       /*--- Set primitive variables for viscous terms and/or generalised source ---*/
-      if (!ideal_gas || viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), node[iPoint]->GetPrimitive());
+      if (viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), node[iPoint]->GetPrimitive());
 
       /*--- Set secondary variables for generalised source ---*/
 	  if (!ideal_gas) numerics->SetSecondary(node[iPoint]->GetSecondary(), node[iPoint]->GetSecondary());
@@ -5178,6 +5181,7 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       if (viscous) {
         /*--- Set gradient of primitive variables ---*/
         numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
+
         /*--- Set gradient of auxillary variables ---*/
         numerics->SetAxiAuxVarGrad(node[iPoint]->GetAxiAuxVarGradient(), NULL);
 

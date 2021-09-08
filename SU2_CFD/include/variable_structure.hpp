@@ -418,22 +418,26 @@ public:
    * \brief Set axisymmetric auxiliar variables.
    * \param[in] axiauxvar - Value of the auxiliar variable.
    */
-  inline void SetAxiAuxVar(su2double* axiauxvar) {
-    for (unsigned long iVar = 0; iVar < 3; iVar++) AxiAuxVar[iVar] = axiauxvar[iVar]; 
-  }
+//  inline void SetAxiAuxVar(su2double* axiauxvar) {
+//    for (unsigned long iVar = 0; iVar < 3; iVar++) AxiAuxVar[iVar] = axiauxvar[iVar]; 
+//  }
+  virtual void SetAxiAuxVar(su2double* axiauxvar);
 
 /*!
    * \brief Get the entire axi aux vector of the problem.
    * \return Reference to the axi aux matrix.
    */
-  inline su2double* GetAxiAuxVar(void) { return AxiAuxVar; } 
+//  inline su2double* GetAxiAuxVar(void) { return AxiAuxVar; } 
+  virtual su2double* GetAxiAuxVar();
 
-  inline void SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value) { Grad_AxiAuxVar[val_var][val_dim] = value; }
+//  inline su2double** GetAxiAuxVarGradient(void) { return Grad_AxiAuxVar; }
+  virtual su2double** GetAxiAuxVarGradient();
+
+//  inline void SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value) { Grad_AxiAuxVar[val_var][val_dim] = value; }
+  virtual void SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value);
 
 // It is maybe not used...
   inline su2double GetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim) { return Grad_AxiAuxVar[val_var][val_dim]; }
-
-  inline su2double** GetAxiAuxVarGradient(void) { return Grad_AxiAuxVar; }
 // mskim-end
 
 
@@ -3162,6 +3166,26 @@ public:
   su2double GetBetaFimlTrain();
 
   void SetBetaFimlTrain(su2double val_beta_fiml_train);
+
+
+// mskim - Add axisymmetric Axuvar.
+  /*!
+   * \brief Set axisymmetric auxiliar variables.
+   * \param[in] axiauxvar - Value of the auxiliar variable.
+   */
+  void SetAxiAuxVar(su2double* axiauxvar);
+
+/*!
+ * \brief Get the entire axi aux vector of the problem.
+ * \return Reference to the axi aux matrix.
+ */
+  su2double* GetAxiAuxVar();
+
+  su2double** GetAxiAuxVarGradient();
+
+  void SetAxiAuxVarGradient(unsigned long val_var, unsigned long val_dim, su2double value);
+// mskim-end
+
 
 };
 

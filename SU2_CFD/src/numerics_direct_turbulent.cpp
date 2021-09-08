@@ -1348,6 +1348,8 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
   AD::SetPreaccIn(Volume); AD::SetPreaccIn(dist_i);
   AD::SetPreaccIn(F1_i); AD::SetPreaccIn(F2_i); AD::SetPreaccIn(CDkw_i);
   AD::SetPreaccIn(PrimVar_Grad_i, nDim+1, nDim);
+// mskim
+  AD::SetPreaccIn(Coord_i[1]);
 
   unsigned short iDim;
   su2double alfa_blended, beta_blended;
@@ -1413,13 +1415,38 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
     val_residual[1] += (1.0 - F1_i)*CDkw_i*Volume;
     
 // mskim
-//  cout << "val_residual[0] = " << val_residual[0] << " in numerics_direct_turbulent.cpp(before)" << endl;
-//	cout << "val_residual[1] = " << val_residual[1] << " in numerics_direct_turbulent.cpp(before)" << endl;
     /*--- Contribution due to 2D axisymmetric formulation ---*/
-    if (axisymmetric) ResidualAxisymmetric(alfa_blended,zeta,val_residual);
+//    if (axisymmetric) ResidualAxisymmetric(alfa_blended,zeta,val_residual);
+    if (axisymmetric) {
+      if (Coord_i[1] > EPS) {
+        su2double yinv, rhov, k, w;
+        su2double sigma_k_i, sigma_w_i;
+        su2double pk_axi, pw_axi, cdk_axi, cdw_axi;
 
-//    cout << "val_residual[0] = " << val_residual[0] << " in numerics_direct_turbulent.cpp(after)" << endl;
-//    cout << "val_residual[1] = " << val_residual[1] << " in numerics_direct_turbulent.cpp(after)" << endl;
+        yinv = 1.0/Coord_i[1];
+	    rhov = Density_i*V_i[2];
+        k = TurbVar_i[0];
+	    w = TurbVar_i[1];
+
+        /*--- Compute blended constants ---*/
+	    sigma_k_i = F1_i*sigma_k_1+(1.0-F1_i)*sigma_k_2;
+	    sigma_w_i = F1_i*sigma_w_1+(1.0-F1_i)*sigma_w_2;
+
+        /*--- Production ---*/
+	    pk_axi = max(0.0,2.0/3.0*rhov*k*(2.0/zeta*(yinv*V_i[2]-PrimVar_Grad_i[2][1]-PrimVar_Grad_i[1][0])-1.0));
+	    pw_axi = alfa_blended*zeta/k*pk_axi;
+
+        /*--- Convection-Diffusion ---*/
+	    cdk_axi = rhov*k-(Laminar_Viscosity_i+sigma_k_i*Eddy_Viscosity_i)*TurbVar_Grad_i[0][1];
+	    cdw_axi = rhov*w-(Laminar_Viscosity_i+sigma_w_i*Eddy_Viscosity_i)*TurbVar_Grad_i[1][1];
+
+    /*--- Add terms to the residuals ---*/
+	    val_residual[0] += yinv*Volume*(pk_axi-cdk_axi);
+	    val_residual[1] += yinv*Volume*(pw_axi-cdw_axi);
+      }
+	}
+
+
 
 
     /*--- Implicit part ---*/
