@@ -5083,7 +5083,9 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
   const bool rans             = (config->GetKind_Turb_Model() != NONE);
 
   /*--- Initialize the source residual to zero ---*/
-  for (iVar = 0; iVar < nVar; iVar++) Residual[iVar] = 0.0;
+//  for (iVar = 0; iVar < nVar; iVar++) Residual[iVar] = 0.0;
+// mskim. Use Res_Sour rather than Residual
+  for (iVar = 0; iVar < nVar; iVar++) Res_Sour[iVar] = 0.0;
   
   if (rotating_frame) {
     
@@ -5098,10 +5100,10 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       numerics->SetVolume(geometry->node[iPoint]->GetVolume());
       
       /*--- Compute the rotating frame source residual ---*/
-      numerics->ComputeResidual(Residual, Jacobian_i, config);
+      numerics->ComputeResidual(Res_Sour, Jacobian_i, config);
       
       /*--- Add the source residual to the total ---*/
-      LinSysRes.AddBlock(iPoint, Residual);
+      LinSysRes.AddBlock(iPoint, Res_Sour);
       
       /*--- Add the implicit Jacobian contribution ---*/
       if (implicit) Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
@@ -5122,26 +5124,55 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 // mskim
     /*--- For viscous problems, we need an additional gradient. ---*/
 	if (viscous) {
-      for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+      for (iPoint = 0; iPoint < nPoint; iPoint++) {
 
         su2double yCoord          = geometry->node[iPoint]->GetCoord(1);
         su2double yVelocity       = node[iPoint]->GetVelocity(1);
         su2double xVelocity       = node[iPoint]->GetVelocity(0);
         su2double Total_Viscosity = (node[iPoint]->GetLaminarViscosity() +
 								     node[iPoint]->GetEddyViscosity());
-		su2double AxiAuxVar [3];
+
+//		cout << "iPoint = " << iPoint << endl;
+//		cout << "yCoord = " << yCoord << endl;
+//		cout << "yVelocity = " << yVelocity << endl;
+//		cout << "xVelocity = " << xVelocity << endl;
+//		cout << "mu_lam = " << node[iPoint]->GetLaminarViscosity() << endl;
+//		cout << "mu_turb = " << node[iPoint]->GetEddyViscosity() << endl;
+//		cout << "\n" << endl;
+
+		su2double dum_AxiAuxVar [3];
         for (iVar = 0; iVar < 3; iVar++) {
-          AxiAuxVar[iVar] = 0.0;
+          dum_AxiAuxVar[iVar] = 0.0;
 		}
+
+//		cout << "Before" << endl;
+//		cout << "iPoint = " << iPoint << endl;
+//		cout << "AxiAuxVar[0] = " << AxiAuxVar[0] << endl;
+//		cout << "AxiAuxVar[1] = " << AxiAuxVar[1] << endl;
+//		cout << "AxiAuxVar[2] = " << AxiAuxVar[2] << endl;
+//		cout << ""<<endl;
 
         if (yCoord > EPS){
           su2double nu_v_on_y = Total_Viscosity*yVelocity/yCoord;
-		  AxiAuxVar[0] = nu_v_on_y;
-		  AxiAuxVar[1] = nu_v_on_y*yVelocity;
-		  AxiAuxVar[2] = nu_v_on_y*xVelocity;
+		  dum_AxiAuxVar[0] = nu_v_on_y;
+		  dum_AxiAuxVar[1] = nu_v_on_y*yVelocity;
+		  dum_AxiAuxVar[2] = nu_v_on_y*xVelocity;
 	    }
+
+//		cout << "After" << endl;
+//		cout << "iPoint = " << iPoint << endl;
+//		cout << "AxiAuxVar[0] = " << AxiAuxVar[0] << endl;
+//		cout << "AxiAuxVar[1] = " << AxiAuxVar[1] << endl;
+//		cout << "AxiAuxVar[2] = " << AxiAuxVar[2] << endl;
+//		cout << ""<<endl;
+
+
         /*--- Set the auxilairy variable for this node. ---*/
-        node[iPoint]->SetAxiAuxVar(AxiAuxVar);
+        node[iPoint]->SetAxiAuxVar(dum_AxiAuxVar);
+
+//		cout << "GetAxiAuxVar[0] = " << node[iPoint]->GetAxiAuxVar()[0] << endl;
+//		cout << "GetAxiAuxVar[1] = " << node[iPoint]->GetAxiAuxVar()[1] << endl;
+//		cout << "GetAxiAuxVar[2] = " << node[iPoint]->GetAxiAuxVar()[2] << endl;
 
 //          node[iPoint]->SetAuxVar(0, nu_v_on_y);
 //          node[iPoint]->SetAuxVar(1, nu_v_on_y*yVelocity);
@@ -5155,6 +5186,10 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
         SetAxiAuxVar_Gradient_LS(geometry, config);
       }
+//	  cout << "iPoint = 75654, AxiAuxVarGradient[0][0] = " << node[75654]->GetAxiAuxVarGradient()[0][0] <<endl;
+//	  cout << "iPoint = 75654, AxiAuxVarGradient[1][0] = " << node[75654]->GetAxiAuxVarGradient()[1][0] <<endl;
+//	  cout << "iPoint = 75654, AxiAuxVarGradient[2][0] = " << node[75654]->GetAxiAuxVarGradient()[2][0] <<endl;
+	
     }
 // mskim-end
 
@@ -5172,6 +5207,7 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
 
 // mskim
+
       /*--- Set primitive variables for viscous terms and/or generalised source ---*/
       if (viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), node[iPoint]->GetPrimitive());
 
@@ -5180,23 +5216,39 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 
       if (viscous) {
         /*--- Set gradient of primitive variables ---*/
-        numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
+//        numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
+        numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), NULL);
+
+//        cout << "iPoint = " << iPoint << endl;
+//		cout << "AxiAuxVarGradient[0][0] = " << node[iPoint]->GetAxiAuxVarGradient()[0][0] << endl;
+//		cout << "AxiAuxVarGradient[1][1] = " << node[iPoint]->GetAxiAuxVarGradient()[1][1] << endl;
+//		cout << "AxiAuxVarGradient[2][0] = " << node[iPoint]->GetAxiAuxVarGradient()[2][0] << endl;
+//		cout <<""<<endl;
 
         /*--- Set gradient of auxillary variables ---*/
         numerics->SetAxiAuxVarGrad(node[iPoint]->GetAxiAuxVarGradient(), NULL);
 
         /*--- Set turbulence kinetic energy ---*/
         if (rans){
+//          cout << "iPoint = " << iPoint << endl; 
+//          cout << "Turb_ke = " << solver_container[TURB_SOL]->node[iPoint]->GetSolution(0) << endl;
+//		  cout << ""<<endl;
+		  
           numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
 		}
 	  }
 // mskim-end
 
+//      cout << "iPoint = " << iPoint << endl;
+//      cout << "mu_lam = " << node[iPoint]->GetLaminarViscosity() << endl;
+//      cout << "mu_turb = " << node[iPoint]->GetEddyViscosity() << endl;
+//      cout << "" << endl;
+
       /*--- Compute Source term Residual ---*/
-      numerics->ComputeResidual(Residual, Jacobian_i, config);
+      numerics->ComputeResidual(Res_Sour, Jacobian_i, config);
       
       /*--- Add Residual ---*/
-      LinSysRes.AddBlock(iPoint, Residual);
+      LinSysRes.AddBlock(iPoint, Res_Sour);
       
       /*--- Implicit part ---*/
       if (implicit)
@@ -5216,10 +5268,10 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       numerics->SetVolume(geometry->node[iPoint]->GetVolume());
       
       /*--- Compute Source term Residual ---*/
-      numerics->ComputeResidual(Residual, config);
+      numerics->ComputeResidual(Res_Sour, config);
       
       /*--- Add Residual ---*/
-      LinSysRes.AddBlock(iPoint, Residual);
+      LinSysRes.AddBlock(iPoint, Res_Sour);
       
     }
     
@@ -5238,11 +5290,11 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       /*--- Get stored time spectral source term ---*/
       for (iVar = 0; iVar < nVar; iVar++) {
         Source = node[iPoint]->GetHarmonicBalance_Source(iVar);        
-        Residual[iVar] = Source*Volume;
+        Res_Sour[iVar] = Source*Volume;
       }
       
       /*--- Add Residual ---*/
-      LinSysRes.AddBlock(iPoint, Residual);
+      LinSysRes.AddBlock(iPoint, Res_Sour);
       
     }
   }
@@ -5265,10 +5317,10 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       numerics->SetVolume(geometry->node[iPoint]->GetVolume());
       
       /*--- Compute the rotating frame source residual ---*/
-      numerics->ComputeResidual(Residual, Jacobian_i, config);
+      numerics->ComputeResidual(Res_Sour, Jacobian_i, config);
       
       /*--- Add the source residual to the total ---*/
-      LinSysRes.AddBlock(iPoint, Residual);
+      LinSysRes.AddBlock(iPoint, Res_Sour);
       
       /*--- Add the implicit Jacobian contribution ---*/
       if (implicit) Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);

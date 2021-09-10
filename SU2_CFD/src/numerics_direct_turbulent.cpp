@@ -1440,11 +1440,11 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
 	    cdk_axi = rhov*k-(Laminar_Viscosity_i+sigma_k_i*Eddy_Viscosity_i)*TurbVar_Grad_i[0][1];
 	    cdw_axi = rhov*w-(Laminar_Viscosity_i+sigma_w_i*Eddy_Viscosity_i)*TurbVar_Grad_i[1][1];
 
-    /*--- Add terms to the residuals ---*/
+        /*--- Add terms to the residuals ---*/
 	    val_residual[0] += yinv*Volume*(pk_axi-cdk_axi);
 	    val_residual[1] += yinv*Volume*(pw_axi-cdw_axi);
       }
-	}
+    }
 
 
 

@@ -546,7 +546,23 @@ void CSolver::SetAxiAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config) {
   su2double **AxiGradient, DualArea, Partial_Res, AxiGrad_Val, *Normal;
 
   for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++)
+{
+//  cout << "Before" << endl;
+//  cout << "iPoint = " << iPoint << endl;
+//  cout << "Grad_AxiAuxVar[0][0] = " << node[iPoint]->GetAxiAuxVarGradient()[0][0] << endl;
+//  cout << "Grad_AxiAuxVar[1][0] = " << node[iPoint]->GetAxiAuxVarGradient()[1][0] << endl;
+//  cout << "Grad_AxiAuxVar[2][0] = " << node[iPoint]->GetAxiAuxVarGradient()[2][0] << endl;
+//  cout << "" << endl;
+
     node[iPoint]->SetAxiAuxVarGradientZero();    // Set Gradient to Zero
+
+//  cout << "After" << endl;
+//  cout << "iPoint = " << iPoint << endl;
+//  cout << "Grad_AxiAuxVar[0][0] = " << node[iPoint]->GetAxiAuxVarGradient()[0][0] << endl;
+//  cout << "Grad_AxiAuxVar[1][0] = " << node[iPoint]->GetAxiAuxVarGradient()[1][0] << endl;
+//  cout << "Grad_AxiAuxVar[2][0] = " << node[iPoint]->GetAxiAuxVarGradient()[2][0] << endl;
+//  cout << "" << endl;
+}
 
   /*--- Loop interior edges ---*/
   
@@ -563,8 +579,10 @@ void CSolver::SetAxiAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config) {
       AxiAuxVar_Average =  0.5 * (AxiAuxVar_i[iVar] + AxiAuxVar_j[iVar]);
       for (iDim = 0; iDim < nDim; iDim++) {
         Partial_Res = AxiAuxVar_Average*Normal[iDim];
-        node[iPoint]->AddAxiAuxVarGradient(iVar, iDim, Partial_Res);
-  	    node[jPoint]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
+        if (geometry->node[iPoint]->GetDomain())
+          node[iPoint]->AddAxiAuxVarGradient(iVar, iDim, Partial_Res);
+        if (geometry->node[iPoint]->GetDomain())
+		  node[jPoint]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
       }
 	}
 
@@ -572,31 +590,52 @@ void CSolver::SetAxiAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config) {
 
   /*--- Loop boundary edges ---*/
   
-  for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++)
-    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY)
+  for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY &&
+	    config->GetMarker_All_KindBC(iMarker) != PERIODIC_BOUNDARY)
     for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
       Point = geometry->vertex[iMarker][iVertex]->GetNode();
       AxiAuxVar_Vertex = node[Point]->GetAxiAuxVar();
       Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
 
-	  for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
+	  for (iVar = 0; iVar < nAxiAuxVar; iVar++)
         for (iDim = 0; iDim < nDim; iDim++) {
           Partial_Res = AxiAuxVar_Vertex[iVar]*Normal[iDim];
-          node[Point]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
+          if (geometry->node[Point]->GetDomain())
+            node[Point]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
         }
-      }
-    }
-
-  for (iPoint=0; iPoint < geometry->GetnPoint(); iPoint++) {
-    AxiGradient = node[iPoint]->GetAxiAuxVarGradient();
-    DualArea = geometry->node[iPoint]->GetVolume();
-    for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
-      for (iDim = 0; iDim < nDim; iDim++) {
-        AxiGrad_Val = AxiGradient[iVar][iDim]/(DualArea+EPS);
-        node[iPoint]->SetAxiAuxVarGradient(iVar, iDim, AxiGrad_Val);
-      }
     }
   }
+
+  /*--- Compute gradient ---*/
+  for (iPoint=0; iPoint < geometry->GetnPoint(); iPoint++) {
+    
+//	cout << "Before" <<endl;
+//    cout << "iPoint = " << iPoint << endl;
+//    cout << "AxiAuxVarGradient[0][0] = " << node[iPoint]->GetAxiAuxVarGradient()[0][0] << endl;
+//    cout << "AxiAuxVarGradient[1][0] = " << node[iPoint]->GetAxiAuxVarGradient()[1][0] << endl;
+//    cout << "AxiAuxVarGradient[2][0] = " << node[iPoint]->GetAxiAuxVarGradient()[2][0] << endl;
+//	cout << "" << endl;
+
+    for (iVar = 0; iVar < nAxiAuxVar; iVar++)
+      for (iDim = 0; iDim < nDim; iDim++) {
+        AxiGradient = node[iPoint]->GetAxiAuxVarGradient();
+        DualArea = geometry->node[iPoint]->GetVolume();
+        AxiGrad_Val = AxiGradient[iVar][iDim] / (DualArea+EPS);
+        node[iPoint]->SetAxiAuxVarGradient(iVar, iDim, AxiGrad_Val);
+
+//		cout << "iPoint = "<< iPoint << "iVar = " << iVar << "iDim = " << iDim << endl;
+//		cout << "AxiGrad_Val = " << AxiGrad_Val << endl;
+//		cout << "" << endl;
+      }
+//	cout << "After" <<endl;
+//    cout << "iPoint = " << iPoint << endl;
+//    cout << "AxiAuxVarGradient[0][0] = " << node[iPoint]->GetAxiAuxVarGradient()[0][0] << endl;
+//    cout << "AxiAuxVarGradient[1][0] = " << node[iPoint]->GetAxiAuxVarGradient()[1][0] << endl;
+//    cout << "AxiAuxVarGradient[2][0] = " << node[iPoint]->GetAxiAuxVarGradient()[2][0] << endl;
+//	cout << "" << endl;
+  }
+
 
   /*--- Gradient MPI ---*/
   Set_MPI_AxiAuxVar_Gradient(geometry, config);
