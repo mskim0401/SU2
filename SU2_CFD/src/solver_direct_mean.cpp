@@ -5084,7 +5084,7 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 
   /*--- Initialize the source residual to zero ---*/
 //  for (iVar = 0; iVar < nVar; iVar++) Residual[iVar] = 0.0;
-// mskim. Use Res_Sour rather than Residual
+// mskim. Use 'Res_Sour' instaed of 'Residual'
   for (iVar = 0; iVar < nVar; iVar++) Res_Sour[iVar] = 0.0;
   
   if (rotating_frame) {
@@ -5203,13 +5203,17 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       /*--- Set control volume ---*/
       numerics->SetVolume(geometry->node[iPoint]->GetVolume());
       
+//	  cout << "iPoint = " << iPoint << endl;
+//      cout << "Volume = " << geometry->node[iPoint]->GetVolume() << endl;
+
       /*--- Set y coordinate ---*/
       numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
 
 // mskim
 
       /*--- Set primitive variables for viscous terms and/or generalised source ---*/
-      if (viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), node[iPoint]->GetPrimitive());
+ //     if (viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), node[iPoint]->GetPrimitive());
+      if (viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), NULL);
 
       /*--- Set secondary variables for generalised source ---*/
 	  if (!ideal_gas) numerics->SetSecondary(node[iPoint]->GetSecondary(), node[iPoint]->GetSecondary());
@@ -5234,7 +5238,8 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 //          cout << "Turb_ke = " << solver_container[TURB_SOL]->node[iPoint]->GetSolution(0) << endl;
 //		  cout << ""<<endl;
 		  
-          numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+//          numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), NULL);
 		}
 	  }
 // mskim-end
@@ -5247,6 +5252,13 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       /*--- Compute Source term Residual ---*/
       numerics->ComputeResidual(Res_Sour, Jacobian_i, config);
       
+//      cout << "Res_Sour[0] = " << Res_Sour[0] << endl;
+//      cout << "Res_Sour[1] = " << Res_Sour[1] << endl;
+//      cout << "Res_Sour[2] = " << Res_Sour[2] << endl;
+//      cout << "Res_Sour[3] = " << Res_Sour[3] << endl;
+//      cout << "" << endl;
+
+
       /*--- Add Residual ---*/
       LinSysRes.AddBlock(iPoint, Res_Sour);
       

@@ -773,7 +773,6 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
   for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
     
     /*--- Allocate solution for a template problem ---*/
-    
     if (template_solver) {
       solver_container[iMGlevel][TEMPLATE_SOL] = new CTemplateSolver(geometry[iMGlevel], config);
     }

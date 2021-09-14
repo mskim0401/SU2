@@ -636,12 +636,99 @@ void CSolver::SetAxiAuxVar_Gradient_GG(CGeometry *geometry, CConfig *config) {
 //	cout << "" << endl;
   }
 
-
   /*--- Gradient MPI ---*/
   Set_MPI_AxiAuxVar_Gradient(geometry, config);
 
 }
 // mskim-end
+
+
+// mskim - Version 7-like code
+//void CSolver::SetAxiAuxVar_Gradient_GG_ver7(CGeometry *geometry, CConfig *config) {
+//  
+//  unsigned long Point = 0, iPoint = 0, jPoint = 0, iEdge, iVertex;
+//  unsigned short nDim = geometry->GetnDim(), iDim, iMarker;
+//  unsigned short iVar, nAxiAuxVar = 3;
+// 
+//  su2double *AxiAuxVar_Vertex, *AxiAuxVar_i, *AxiAuxVar_j, AxiAuxVar_Average;
+//  su2double **AxiGradient, DualArea, Partial_Res, AxiGrad_Val, *Normal;
+//
+//  for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++)
+//{
+//    node[iPoint]->SetAxiAuxVarGradientZero();    // Set Gradient to Zero
+//}
+//
+//  /*--- Loop interior edges ---*/
+//  su2double halfOnVol;
+//
+//  for (unsigned long iNeigh = 0; iNeigh < node[iPoint]->GetnPoint(); iNeigh++)
+//  {
+//
+//
+//  for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {
+//    iPoint = geometry->edge[iEdge]->GetNode(0);
+//    jPoint = geometry->edge[iEdge]->GetNode(1);
+//
+//    AxiAuxVar_i = node[iPoint]->GetAxiAuxVar();
+//    AxiAuxVar_j = node[jPoint]->GetAxiAuxVar();
+//
+//    area = geometry->edge[iEdge]->GetNormal();
+//
+//    for (iVar = 0; iVar < nAxiAuxVar; iVar++) {
+//      AxiAuxVar_Average =  0.5 * (AxiAuxVar_i[iVar] + AxiAuxVar_j[iVar]);
+//      for (iDim = 0; iDim < nDim; iDim++) {
+//        Partial_Res = AxiAuxVar_Average*Normal[iDim];
+//        if (geometry->node[iPoint]->GetDomain())
+//          node[iPoint]->AddAxiAuxVarGradient(iVar, iDim, Partial_Res);
+//        if (geometry->node[iPoint]->GetDomain())
+//		  node[jPoint]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
+//      }
+//	}
+//
+//  }
+//
+//  /*--- Loop boundary edges ---*/
+//  
+//  for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+//    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY &&
+//	    config->GetMarker_All_KindBC(iMarker) != PERIODIC_BOUNDARY)
+//    for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+//      Point = geometry->vertex[iMarker][iVertex]->GetNode();
+//      AxiAuxVar_Vertex = node[Point]->GetAxiAuxVar();
+//      Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+//
+//	  for (iVar = 0; iVar < nAxiAuxVar; iVar++)
+//        for (iDim = 0; iDim < nDim; iDim++) {
+//          Partial_Res = AxiAuxVar_Vertex[iVar]*Normal[iDim];
+//          if (geometry->node[Point]->GetDomain())
+//            node[Point]->SubtractAxiAuxVarGradient(iVar, iDim, Partial_Res);
+//        }
+//    }
+//  }
+//
+//  /*--- Compute gradient ---*/
+//  for (iPoint=0; iPoint < geometry->GetnPoint(); iPoint++) {
+//    
+//    for (iVar = 0; iVar < nAxiAuxVar; iVar++)
+//      for (iDim = 0; iDim < nDim; iDim++) {
+//        AxiGradient = node[iPoint]->GetAxiAuxVarGradient();
+//        DualArea = geometry->node[iPoint]->GetVolume();
+//        AxiGrad_Val = AxiGradient[iVar][iDim] / (DualArea+EPS);
+//        node[iPoint]->SetAxiAuxVarGradient(iVar, iDim, AxiGrad_Val);
+//
+////		cout << "iPoint = "<< iPoint << "iVar = " << iVar << "iDim = " << iDim << endl;
+////		cout << "AxiGrad_Val = " << AxiGrad_Val << endl;
+////		cout << "" << endl;
+//      }
+//  }
+//
+//  /*--- Gradient MPI ---*/
+//  Set_MPI_AxiAuxVar_Gradient(geometry, config);
+//
+//}
+// mskim-end
+
+
 
 
 void CSolver::SetAuxVar_Gradient_LS(CGeometry *geometry, CConfig *config) {
