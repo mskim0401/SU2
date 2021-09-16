@@ -4074,6 +4074,10 @@ private:
   bool fiml_apgr;
   su2double intermittency;
   su2double Production, Destruction, CrossProduction;
+
+// seoyeon's contribution
+// mskim: boolearn axisymmetric
+  bool axisymmetric;
   
 public:
   

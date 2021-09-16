@@ -532,7 +532,10 @@ CSourcePieceWise_TurbSA::CSourcePieceWise_TurbSA(unsigned short val_nDim, unsign
 CSourcePieceWise_TurbSA::~CSourcePieceWise_TurbSA(void) { }
 
 void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config) {
-  
+  //seoyeon - 0915
+  // mskim: To support SA axisymmetric
+  axisymmetric = config->GetAxisymmetric();
+
 //  AD::StartPreacc();
 //  AD::SetPreaccIn(V_i, nDim+6);
 //  AD::SetPreaccIn(Vorticity_i, nDim);
@@ -820,6 +823,25 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
     else val_Jacobian_i[0][0] -= cw1*(dfw*TurbVar_i[0] +  2.0*fw)*TurbVar_i[0]/dist_i_2*Volume;
 
   }
+
+// seoyeon's contribution - 0915
+// mskim: SA miodel axisymmetric source term thanks to seoyeon.
+    if (axisymmetric) {
+      if (Coord_i[1] > EPS) {
+        su2double yinv, conv_axi, diff_axi, cross_axi;
+        su2double cb2_sig_1 = (1+cb2)/sigma;
+        su2double cb2_sig = cb2/sigma;
+
+        yinv = 1.0/Coord_i[1];
+        conv_axi = V_i[2]*TurbVar_i[0];
+        diff_axi = cb2_sig_1*(TurbVar_i[0]+nu)*TurbVar_Grad_i[0][1];
+        cross_axi = cb2_sig*(TurbVar_i[0]+nu)*TurbVar_Grad_i[0][1];
+		
+        val_residual[0] += yinv*Volume*(-conv_axi+diff_axi-cross_axi);
+
+      }
+    }
+
 
 //  AD::SetPreaccOut(val_residual[0]);
 //  AD::EndPreacc();
@@ -1416,38 +1438,7 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
     
 // mskim
     /*--- Contribution due to 2D axisymmetric formulation ---*/
-//    if (axisymmetric) ResidualAxisymmetric(alfa_blended,zeta,val_residual);
-    if (axisymmetric) {
-      if (Coord_i[1] > EPS) {
-        su2double yinv, rhov, k, w;
-        su2double sigma_k_i, sigma_w_i;
-        su2double pk_axi, pw_axi, cdk_axi, cdw_axi;
-
-        yinv = 1.0/Coord_i[1];
-	    rhov = Density_i*V_i[2];
-        k = TurbVar_i[0];
-	    w = TurbVar_i[1];
-
-        /*--- Compute blended constants ---*/
-	    sigma_k_i = F1_i*sigma_k_1+(1.0-F1_i)*sigma_k_2;
-	    sigma_w_i = F1_i*sigma_w_1+(1.0-F1_i)*sigma_w_2;
-
-        /*--- Production ---*/
-	    pk_axi = max(0.0,2.0/3.0*rhov*k*(2.0/zeta*(yinv*V_i[2]-PrimVar_Grad_i[2][1]-PrimVar_Grad_i[1][0])-1.0));
-	    pw_axi = alfa_blended*zeta/k*pk_axi;
-
-        /*--- Convection-Diffusion ---*/
-	    cdk_axi = rhov*k-(Laminar_Viscosity_i+sigma_k_i*Eddy_Viscosity_i)*TurbVar_Grad_i[0][1];
-	    cdw_axi = rhov*w-(Laminar_Viscosity_i+sigma_w_i*Eddy_Viscosity_i)*TurbVar_Grad_i[1][1];
-
-        /*--- Add terms to the residuals ---*/
-	    val_residual[0] += yinv*Volume*(pk_axi-cdk_axi);
-	    val_residual[1] += yinv*Volume*(pw_axi-cdw_axi);
-      }
-    }
-
-
-
+    if (axisymmetric) ResidualAxisymmetric(alfa_blended,zeta,val_residual);
 
     /*--- Implicit part ---*/
     

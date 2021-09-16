@@ -2032,7 +2032,9 @@ void CTurbSASolver::Postprocessing(CGeometry *geometry, CSolver **solver_contain
 void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
                                     CConfig *config, unsigned short iMesh) {
   unsigned long iPoint;
-  
+//seoyeon-0915. mskim: To support SA axisymmetric
+  bool axisymmetric = config->GetAxisymmetric();
+
   bool harmonic_balance = (config->GetUnsteady_Simulation() == HARMONIC_BALANCE);
   bool transition    = (config->GetKind_Trans_Model() == LM);
   bool beta_fiml	=	(config->GetKind_Turb_Model() == SA_FIML); //JRH - 04032017
@@ -2113,6 +2115,14 @@ void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_contai
       /*--- Set distance to the surface ---*/
 
       numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(), 0.0);
+
+//seoyeon's contribution -0915
+// mskim: To support SA axisymmetric. 
+      if (axisymmetric){
+      /*--- Set y coordinate ---*/
+        numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
+      }
+
 
       /*--- Compute the source term ---*/
 
