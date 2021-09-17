@@ -4144,18 +4144,6 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
 }
 */
 
-//  cout << "AxiAuxVar_Grad_i[0][0] = " << AxiAuxVar_Grad_i[0][0] << endl;
-//  cout << "AxiAuxVar_Grad_i[1][1] = " << AxiAuxVar_Grad_i[1][1] << endl;
-//  cout << "AxiAuxVar_Grad_i[2][0] = " << AxiAuxVar_Grad_i[2][0] << endl;
-//  cout << "turb_ke_i = " << turb_ke_i << endl;
-//  cout <<""<<endl;
-
-//  cout << "nDim = " << nDim << endl;
-//  cout << "nVar = " << nVar << endl;
-//  cout << "Gamma = " << Gamma << endl;
-//  cout << "Volume (internal) = " << Volume << endl;
-//  cout << "" << endl;
-
 // mskim, version 7 base code
   if (Coord_i[1] > EPS) {
 
@@ -4172,25 +4160,17 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
 // V_i = primitive variables : T, u, v, w, P, rho, h, ...
       Pressure_i = (Gamma-1.0)*U_i[0]*(U_i[nDim+1]/U_i[0]-0.5*sq_vel);
       Enthalpy_i = (U_i[nDim+1] + Pressure_i) / U_i[0];
-
-//      cout << "Pressure_i = " << Pressure_i << endl;
-//      cout << "V_i[nDim+1] = " << V_i[nDim+1] << endl;
-//	  cout << "" <<endl;
-
-//      cout << "Enthalpy_i = " << Enthalpy_i << endl;
-//      cout << " V_i[nDim+3] = " << V_i[nDim+3] << endl;
-//	  cout << "" <<endl;
       
       val_residual[0] = yinv*Volume*U_i[2];
       val_residual[1] = yinv*Volume*U_i[1]*U_i[2]/U_i[0];
       val_residual[2] = yinv*Volume*(U_i[2]*U_i[2]/U_i[0]);
       val_residual[3] = yinv*Volume*Enthalpy_i*U_i[2];
     }
-//    if (incompressible) {
-//      val_residual[0] = yinv*Volume*U_i[2]*BetaInc2_i;
-//      val_residual[1] = yinv*Volume*U_i[1]*U_i[2]/DensityInc_i;
-//      val_residual[2] = yinv*Volume*U_i[2]*U_i[2]/DensityInc_i;
-//    }
+    if (incompressible) {
+      val_residual[0] = yinv*Volume*U_i[2]*BetaInc2_i;
+      val_residual[1] = yinv*Volume*U_i[1]*U_i[2]/DensityInc_i;
+      val_residual[2] = yinv*Volume*U_i[2]*U_i[2]/DensityInc_i;
+    }
 
     /*--- Inviscid component of the source term. ---*/
 
@@ -4223,76 +4203,6 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
     /*--- Add the viscous terms if necessary. ---*/
 //    if (viscous) ResidualDiffusion();
     if (viscous) ResidualDiffusion(val_residual, config);
-//    if (viscous) {
-// 
-//      if (!rans){ turb_ke_i = 0.0; }
-//    
-//    // mskim. nDim+5 ... is for compressible
-//      su2double laminar_viscosity_i    = V_i[nDim+5];
-//      su2double eddy_viscosity_i       = V_i[nDim+6];
-//      su2double thermal_conductivity_i = V_i[nDim+7];
-//      su2double heat_capacity_cp_i     = V_i[nDim+8];
-//    
-//      su2double total_viscosity_i = laminar_viscosity_i + eddy_viscosity_i;
-//      su2double total_conductivity_i = thermal_conductivity_i + heat_capacity_cp_i*eddy_viscosity_i/Prandtl_Turb;
-//
-//      su2double u = U_i[1]/U_i[0];
-//      su2double v = U_i[2]/U_i[0];
-//
-////      cout << "laminar_viscisoty = " << laminar_viscosity_i << endl;
-////      cout << "eddy_viscisoty = " << eddy_viscosity_i << endl;
-////      cout << "u = " << u << endl;
-////      cout << "v = " << v << endl;
-////      cout << "TWO3 = " << TWO3 << endl;
-////      cout << "heat_capacity_cp_i = " << heat_capacity_cp_i << endl;
-////      cout << "thermal_conductivity_i = " << thermal_conductivity_i << endl;
-////	  cout << "k_lam = " << heat_capacity_cp_i*laminar_viscosity_i/Prandtl_Lam << endl;
-////	  cout << "k_turb = " << heat_capacity_cp_i*eddy_viscosity_i/Prandtl_Lam << endl;
-////      cout << "yinv = " << yinv << endl;
-////	  cout << "u = " << u << " v = " << v << endl;
-////	  cout << "xCoord = " << Coord_i[0] << " yCoord = " << Coord_i[1] << endl;
-////      cout << "PrimVar_Grad_i[0][1] = " << PrimVar_Grad_i[0][1] << endl;
-////      cout << "PrimVar_Grad_i[1][0] = " << PrimVar_Grad_i[1][0] << endl;
-////      cout << "PrimVar_Grad_i[1][1] = " << PrimVar_Grad_i[1][1] << endl;
-////      cout << "PrimVar_Grad_i[2][0] = " << PrimVar_Grad_i[2][0] << endl;
-////      cout << "PrimVar_Grad_i[2][1] = " << PrimVar_Grad_i[2][1] << endl;
-////      cout << "AxiAuxVar_Grad_i[0][0] = " << AxiAuxVar_Grad_i[0][0] << endl;
-////      cout << "AxiAuxVar_Grad_i[0][1] = " << AxiAuxVar_Grad_i[0][1] << endl;
-////      cout << "AxiAuxVar_Grad_i[1][1] = " << AxiAuxVar_Grad_i[1][1] << endl;
-////      cout << "AxiAuxVar_Grad_i[2][0] = " << AxiAuxVar_Grad_i[2][0] << endl;
-////      cout << "" << endl;
-////      cout << "AxiAuxVar_Grad_j[0][0] = " << AxiAuxVar_Grad_j[0][0] << endl;
-////      cout << "AxiAuxVar_Grad_j[0][1] = " << AxiAuxVar_Grad_j[0][1] << endl;
-////      cout << "AxiAuxVar_Grad_j[1][1] = " << AxiAuxVar_Grad_j[1][1] << endl;
-////      cout << "AxiAuxVar_Grad_j[2][0] = " << AxiAuxVar_Grad_j[2][0] << endl;
-////      cout << "" << endl;
-//
-//      if (compressible) {
-//	    turb_ke_i = 0.0; // mskim. TEST
-//        val_residual[0] -= 0.0;
-//        val_residual[1] -= Volume*(yinv*total_viscosity_i*(PrimVar_Grad_i[1][1]+PrimVar_Grad_i[2][0])
-//                               -TWO3*AxiAuxVar_Grad_i[0][0]);
-//        val_residual[2] -= Volume*(yinv*total_viscosity_i*2*(PrimVar_Grad_i[2][1]-v*yinv)
-//                               -TWO3*AxiAuxVar_Grad_i[0][1]);
-//        val_residual[3] -= Volume*(yinv*(total_viscosity_i*(u*(PrimVar_Grad_i[2][0]+PrimVar_Grad_i[1][1])
-//                                                   +v*TWO3*(2*PrimVar_Grad_i[2][1]-PrimVar_Grad_i[1][0]
-//                                                                 -v*yinv+U_i[0]*turb_ke_i))
-//                                                   -total_conductivity_i*PrimVar_Grad_i[0][1])
-//                                   -TWO3*(AxiAuxVar_Grad_i[1][1]+AxiAuxVar_Grad_i[2][0]));    
-//	  }
-//
-//      // mskim. This is dummy code. Incompressible is not guranteed
-////      else if (incompressible) {
-////        val_residual[0] -= 0.0;
-////        val_residual[1] -= Volume*(yinv*tau[0][1] - TWO3*AxiAuxVar_Grad_i[0][0]);
-////        val_residual[2] -= Volume*(yinv*2.0*total_viscosity_i*PrimVar_Grad_i[2][1] -
-////                               yinv* yinv*2.0*total_viscosity_i*U_i[2] -
-////                               TWO3*AxiAuxVar_Grad_i[0][1]);
-////    	// PrimVar_Grad_i... is it right?
-////        val_residual[3] -= Volume*yinv*thermal_conductivity_i*PrimVar_Grad_i[nDim+1][1];
-////      }
-//
-//    }
 
   }
 
@@ -4309,28 +4219,6 @@ void CSourceAxisymmetric_Flow::ComputeResidual(su2double *val_residual, su2doubl
     }
   
   }
-//  cout << "val_residual[0] = " << val_residual[0] << endl;
-//  cout << "val_residual[1] = " << val_residual[1] << endl;
-//  cout << "val_residual[2] = " << val_residual[2] << endl;
-//  cout << "val_residual[3] = " << val_residual[3] << endl;
-//  cout << "val_Jacobian_i[0][0] = " << val_Jacobian_i[0][0] << endl;
-//  cout << "val_Jacobian_i[0][1] = " << val_Jacobian_i[0][1] << endl;
-//  cout << "val_Jacobian_i[0][2] = " << val_Jacobian_i[0][2] << endl;
-//  cout << "val_Jacobian_i[0][3] = " << val_Jacobian_i[0][3] << endl;
-//  cout << "val_Jacobian_i[1][0] = " << val_Jacobian_i[1][0] << endl;
-//  cout << "val_Jacobian_i[1][1] = " << val_Jacobian_i[1][1] << endl;
-//  cout << "val_Jacobian_i[1][2] = " << val_Jacobian_i[1][2] << endl;
-//  cout << "val_Jacobian_i[1][3] = " << val_Jacobian_i[1][3] << endl;
-//  cout << "val_Jacobian_i[2][0] = " << val_Jacobian_i[2][0] << endl;
-//  cout << "val_Jacobian_i[2][1] = " << val_Jacobian_i[2][1] << endl;
-//  cout << "val_Jacobian_i[2][2] = " << val_Jacobian_i[2][2] << endl;
-//  cout << "val_Jacobian_i[2][3] = " << val_Jacobian_i[2][3] << endl;
-//  cout << "val_Jacobian_i[3][0] = " << val_Jacobian_i[3][0] << endl;
-//  cout << "val_Jacobian_i[3][1] = " << val_Jacobian_i[3][1] << endl;
-//  cout << "val_Jacobian_i[3][2] = " << val_Jacobian_i[3][2] << endl;
-//  cout << "val_Jacobian_i[3][3] = " << val_Jacobian_i[3][3] << endl;
-//  cout<<""<<endl;
-
 
 } 
 // mskim-end
@@ -4374,11 +4262,6 @@ void CSourceAxisymmetric_Flow::ResidualDiffusion(su2double *val_residual, CConfi
 //                               -TWO3*(AxiAuxVar_Grad_i[1][1]+AxiAuxVar_Grad_i[2][0]));
 
   }
-
-//    cout << "AxiAuxVar_Grad_i[0][0] = " << AxiAuxVar_Grad_i[0][0] << endl;
-//    cout << "AxiAuxVar_Grad_i[0][1] = " << AxiAuxVar_Grad_i[0][1] << endl;
-//    cout << "AxiAuxVar_Grad_i[1][1] = " << AxiAuxVar_Grad_i[1][1] << endl;
-//    cout << "AxiAuxVar_Grad_i[2][0] = " << AxiAuxVar_Grad_i[2][0] << endl;
 
 // Incompressible dummy
   if (incompressible) {

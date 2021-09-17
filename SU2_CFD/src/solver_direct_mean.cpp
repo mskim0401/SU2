@@ -5131,26 +5131,11 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
         su2double xVelocity       = node[iPoint]->GetVelocity(0);
         su2double Total_Viscosity = (node[iPoint]->GetLaminarViscosity() +
 								     node[iPoint]->GetEddyViscosity());
-
-//		cout << "iPoint = " << iPoint << endl;
-//		cout << "yCoord = " << yCoord << endl;
-//		cout << "yVelocity = " << yVelocity << endl;
-//		cout << "xVelocity = " << xVelocity << endl;
-//		cout << "mu_lam = " << node[iPoint]->GetLaminarViscosity() << endl;
-//		cout << "mu_turb = " << node[iPoint]->GetEddyViscosity() << endl;
-//		cout << "\n" << endl;
-
-		su2double dum_AxiAuxVar [3];
+	
+	    su2double dum_AxiAuxVar [3];
         for (iVar = 0; iVar < 3; iVar++) {
           dum_AxiAuxVar[iVar] = 0.0;
 		}
-
-//		cout << "Before" << endl;
-//		cout << "iPoint = " << iPoint << endl;
-//		cout << "AxiAuxVar[0] = " << AxiAuxVar[0] << endl;
-//		cout << "AxiAuxVar[1] = " << AxiAuxVar[1] << endl;
-//		cout << "AxiAuxVar[2] = " << AxiAuxVar[2] << endl;
-//		cout << ""<<endl;
 
         if (yCoord > EPS){
           su2double nu_v_on_y = Total_Viscosity*yVelocity/yCoord;
@@ -5159,24 +5144,8 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 		  dum_AxiAuxVar[2] = nu_v_on_y*xVelocity;
 	    }
 
-//		cout << "After" << endl;
-//		cout << "iPoint = " << iPoint << endl;
-//		cout << "AxiAuxVar[0] = " << AxiAuxVar[0] << endl;
-//		cout << "AxiAuxVar[1] = " << AxiAuxVar[1] << endl;
-//		cout << "AxiAuxVar[2] = " << AxiAuxVar[2] << endl;
-//		cout << ""<<endl;
-
-
         /*--- Set the auxilairy variable for this node. ---*/
         node[iPoint]->SetAxiAuxVar(dum_AxiAuxVar);
-
-//		cout << "GetAxiAuxVar[0] = " << node[iPoint]->GetAxiAuxVar()[0] << endl;
-//		cout << "GetAxiAuxVar[1] = " << node[iPoint]->GetAxiAuxVar()[1] << endl;
-//		cout << "GetAxiAuxVar[2] = " << node[iPoint]->GetAxiAuxVar()[2] << endl;
-
-//          node[iPoint]->SetAuxVar(0, nu_v_on_y);
-//          node[iPoint]->SetAuxVar(1, nu_v_on_y*yVelocity);
-//          node[iPoint]->SetAuxVar(2, nu_v_on_y*xVelocity);
       }
 
       /*--- Compute the auxiliary variable gradient with GG or WLS. ---*/
@@ -5186,10 +5155,6 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
         SetAxiAuxVar_Gradient_LS(geometry, config);
       }
-//	  cout << "iPoint = 75654, AxiAuxVarGradient[0][0] = " << node[75654]->GetAxiAuxVarGradient()[0][0] <<endl;
-//	  cout << "iPoint = 75654, AxiAuxVarGradient[1][0] = " << node[75654]->GetAxiAuxVarGradient()[1][0] <<endl;
-//	  cout << "iPoint = 75654, AxiAuxVarGradient[2][0] = " << node[75654]->GetAxiAuxVarGradient()[2][0] <<endl;
-	
     }
 // mskim-end
 
@@ -5203,9 +5168,6 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       /*--- Set control volume ---*/
       numerics->SetVolume(geometry->node[iPoint]->GetVolume());
       
-//	  cout << "iPoint = " << iPoint << endl;
-//      cout << "Volume = " << geometry->node[iPoint]->GetVolume() << endl;
-
       /*--- Set y coordinate ---*/
       numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
 
@@ -5223,41 +5185,19 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 //        numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
         numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), NULL);
 
-//        cout << "iPoint = " << iPoint << endl;
-//		cout << "AxiAuxVarGradient[0][0] = " << node[iPoint]->GetAxiAuxVarGradient()[0][0] << endl;
-//		cout << "AxiAuxVarGradient[1][1] = " << node[iPoint]->GetAxiAuxVarGradient()[1][1] << endl;
-//		cout << "AxiAuxVarGradient[2][0] = " << node[iPoint]->GetAxiAuxVarGradient()[2][0] << endl;
-//		cout <<""<<endl;
-
         /*--- Set gradient of auxillary variables ---*/
         numerics->SetAxiAuxVarGrad(node[iPoint]->GetAxiAuxVarGradient(), NULL);
 
         /*--- Set turbulence kinetic energy ---*/
         if (rans){
-//          cout << "iPoint = " << iPoint << endl; 
-//          cout << "Turb_ke = " << solver_container[TURB_SOL]->node[iPoint]->GetSolution(0) << endl;
-//		  cout << ""<<endl;
-		  
 //          numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
           numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), NULL);
 		}
 	  }
 // mskim-end
 
-//      cout << "iPoint = " << iPoint << endl;
-//      cout << "mu_lam = " << node[iPoint]->GetLaminarViscosity() << endl;
-//      cout << "mu_turb = " << node[iPoint]->GetEddyViscosity() << endl;
-//      cout << "" << endl;
-
       /*--- Compute Source term Residual ---*/
       numerics->ComputeResidual(Res_Sour, Jacobian_i, config);
-      
-//      cout << "Res_Sour[0] = " << Res_Sour[0] << endl;
-//      cout << "Res_Sour[1] = " << Res_Sour[1] << endl;
-//      cout << "Res_Sour[2] = " << Res_Sour[2] << endl;
-//      cout << "Res_Sour[3] = " << Res_Sour[3] << endl;
-//      cout << "" << endl;
-
 
       /*--- Add Residual ---*/
       LinSysRes.AddBlock(iPoint, Res_Sour);

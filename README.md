@@ -24,7 +24,6 @@ Incompressible outlet BC and 'Set_MPI_AxiAuxVar_Gradient': SU2 v6<br />
 Fixed Coord_j for boundary viscous numerics: https://github.com/su2code/SU2/pull/1189<br />
 
 Currently, only compressible flow is guaranteed.
-For the turbulence, SA axisymmetric source term will be added. Axisymmetric case with SST model is now available, but SST with FIML is unavailable yet.
 
 The following is readme provided by J. Holland:
 
