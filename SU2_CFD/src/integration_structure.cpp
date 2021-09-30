@@ -59,6 +59,7 @@ void CIntegration::Space_Integration(CGeometry *geometry,
   unsigned short iMarker, KindBC;
   
   unsigned short MainSolver = config->GetContainerPosition(RunTime_EqSystem);
+
   bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
   //cout << "JRH Debugging: In CIntegration::Space_Integration - Calling Flow Residuals" << endl;

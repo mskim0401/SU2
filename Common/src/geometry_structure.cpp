@@ -1059,7 +1059,7 @@ void CGeometry::ComputeSurf_Straightness(CConfig *config,
 }
 // mskim-end
 
-// mskim
+// mskim. PR#1189
 void CGeometry::PointPointReflect(int nDim, const su2double *a, const su2double *b, su2double* d){
   for(int i = 0; i < nDim; i++) d[i] = 2*b[i] - a[i];
 }

@@ -16,12 +16,17 @@ SST Jacobian bug: https://github.com/su2code/SU2/pull/491<br />
 Axisymmetric source term implicit decision: https://github.com/su2code/SU2/pull/456<br />
 Viscous Jacobian sign error: https://github.com/su2code/SU2/pull/612<br />
 Symmetric and Euler BC issues: https://github.com/su2code/SU2/pull/657, https://github.com/su2code/SU2/pull/740<br />
+::These modifications make another problem at symmetric axis, so these are available only when AXISYMMETRIC= NO.
 Turbulent viscosity calculation in SST: https://github.com/su2code/SU2/pull/905<br />
 
 Add missing term to strain magnitude for 2D: https://github.com/su2code/SU2/pull/670<br />
 Periodic Green Gauss bug: https://github.com/su2code/SU2/pull/496<br />
 Incompressible outlet BC and 'Set_MPI_AxiAuxVar_Gradient': SU2 v6<br />
 Fixed Coord_j for boundary viscous numerics: https://github.com/su2code/SU2/pull/1189<br />
+
+CFL reduction factors has been modified to be available for Discrete Adjoint not only Continuous Adjoint.
+
+2D Axisymmetric SA equation is now conducted with the help of S. Heo.
 
 Currently, only compressible flow is guaranteed.
 

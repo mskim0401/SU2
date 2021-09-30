@@ -3235,7 +3235,9 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
   Iter_Fixed_CM        = SU2_TYPE::Int(nExtIter / (su2double(Update_iH)+5.0));
   Iter_Fixed_NetThrust = SU2_TYPE::Int(nExtIter / (su2double(Update_BCThrust)+5.0));
 
-  if (ContinuousAdjoint) {
+// mskim. CFL Reduction factor is now available on Discrete Adjoint Problem.
+//  if (ContinuousAdjoint) {
+  if (ContinuousAdjoint || DiscreteAdjoint) {
     CFL[0] = CFL[0] * CFLRedCoeff_AdjFlow;
     CFL_AdaptParam[2] *= CFLRedCoeff_AdjFlow;
     CFL_AdaptParam[3] *= CFLRedCoeff_AdjFlow;
@@ -4741,6 +4743,13 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
 				cout.precision(3);
 				cout.width(6); cout << CFL[0];
 				cout << endl;
+				// mskim. Discrete Adjoint CFL Reduction
+				if (DiscreteAdjoint) {
+				  cout << "Adaptive CFL number:    ";
+				  cout.width(6); cout << CFL[0]*CFLRedCoeff_AdjFlow;
+				  cout << endl;
+				}
+				// mskim-end
 			}
 			
 
