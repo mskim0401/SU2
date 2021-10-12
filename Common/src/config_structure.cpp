@@ -4054,6 +4054,10 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
     if ((Kind_Regime == COMPRESSIBLE) && (Kind_Solver != FEM_ELASTICITY) &&
         (Kind_Solver != HEAT_EQUATION) && (Kind_Solver != WAVE_EQUATION)) {
       cout << "Mach number: " << Mach <<"."<< endl;
+// mskim.
+      if (Low_Mach_Precon) cout << "Use of Low Mach Pre-conditioning" << endl;
+      if (Low_Mach_Corr) cout << "Use of Low Mach Post-conditioning" << endl;
+	  
       cout << "Angle of attack (AoA): " << AoA <<" deg, and angle of sideslip (AoS): " << AoS <<" deg."<< endl;
       if ((Kind_Solver == NAVIER_STOKES) || (Kind_Solver == ADJ_NAVIER_STOKES) ||
           (Kind_Solver == RANS) || (Kind_Solver == ADJ_RANS))
@@ -4741,15 +4745,21 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
 			if (Unsteady_Simulation != TIME_STEPPING) {
 				cout << "Courant-Friedrichs-Lewy number:   ";
 				cout.precision(3);
-				cout.width(6); cout << CFL[0];
-				cout << endl;
+				cout.width(6); cout << CFL[0]; 
 				// mskim. Discrete Adjoint CFL Reduction
 				if (DiscreteAdjoint) {
-				  cout << "Adaptive CFL number:    ";
-				  cout.width(6); cout << CFL[0]*CFLRedCoeff_AdjFlow;
+				  cout << " (with reduction factor)" << endl;
+				  cout << "Courant-Friedrichs-Lewy number:   ";
+				  cout.precision(3);
+				  cout.width(6); cout << CFL[0]/CFLRedCoeff_AdjFlow;
+				  cout << " (without reduction factor)" << endl;
+				  
+				  cout << "CFL reduction factor for Adjoint Flow:   ";
+				  cout.precision(3);
+				  cout.width(6); cout << CFLRedCoeff_AdjFlow;
 				  cout << endl;
 				}
-				// mskim-end
+				else {cout << endl;}
 			}
 			
 

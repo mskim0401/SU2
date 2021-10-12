@@ -25,6 +25,7 @@ Incompressible outlet BC and 'Set_MPI_AxiAuxVar_Gradient': SU2 v6<br />
 Fixed Coord_j for boundary viscous numerics: https://github.com/su2code/SU2/pull/1189<br />
 
 CFL reduction factors has been modified to be available for Discrete Adjoint not only Continuous Adjoint.
+Low Mach Pre-conditioning is available and modified as version 6.
 
 2D Axisymmetric SA equation is now conducted with the help of S. Heo.
 
