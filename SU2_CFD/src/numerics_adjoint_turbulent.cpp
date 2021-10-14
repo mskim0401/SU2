@@ -393,6 +393,8 @@ void CSourcePieceWise_AdjTurb::ComputeResidual(su2double *val_residual, su2doubl
   
   bool implicit = (config->GetKind_TimeIntScheme_AdjTurb() == EULER_IMPLICIT);
   su2double Prandtl_Turb = config->GetPrandtl_Turb();
+// mskim. Adjoint Axisymmetric Implementation
+  bool axisymmetric = config->GetAxisymmetric();
   
   val_residual[0] = 0.0;
   if (implicit)
@@ -473,6 +475,18 @@ void CSourcePieceWise_AdjTurb::ComputeResidual(su2double *val_residual, su2doubl
         
     if (implicit)
       val_Jacobian_i[0][0] = -Bs*Volume;
+
+// mskim. Adjoint Axisymmetric implementation
+      if (axisymmetric) {
+	    su2double yinv, v, Bs_axi;
+		yinv = 1.0/Coord_i[1];
+		v = U_i[2]/U_i[0];
+		Bs_axi = yinv*(TurbVar_Grad_i[0][1]/sigma - v);
+
+        val_Jacobian_i[0][0] += -Bs_axi*Volume;
+      }
+
+
     
     /*---SECOND PART: \partial_nu_hat mu^k F^{vk} cdot \grad Psi ---*/
     su2double dEddyVisc_nuhat;

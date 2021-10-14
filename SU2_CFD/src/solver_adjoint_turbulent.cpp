@@ -753,6 +753,9 @@ void CAdjTurbSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
   su2double *U_i, **GradPrimVar_i, *TurbVar_i;
   su2double **TurbVar_Grad_i, *TurbPsi_i, **PsiVar_Grad_i; // Gradients
   
+// mskim.
+  bool axisymmetric = config->GetAxisymmetric();
+  
   /*--- Piecewise source term ---*/
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
         
@@ -787,7 +790,13 @@ void CAdjTurbSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     /*--- Set volume and distances to the surface ---*/
     numerics->SetVolume(geometry->node[iPoint]->GetVolume());
     numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(), 0.0);
-    
+
+// mskim. Adjoint Axisymmetric implementation
+    if (axisymmetric){
+    /*--- Set y coordinate ---*/
+      numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
+    }
+
     /*--- Add and Subtract Residual ---*/
     numerics->ComputeResidual(Residual, Jacobian_ii, NULL, config);
     LinSysRes.AddBlock(iPoint, Residual);

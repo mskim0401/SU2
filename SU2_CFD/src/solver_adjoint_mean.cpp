@@ -2998,6 +2998,12 @@ void CAdjEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_cont
   //  bool gravity        = (config->GetGravityForce() == YES);
   bool harmonic_balance  = (config->GetUnsteady_Simulation() == HARMONIC_BALANCE);
   
+// mskim
+  const bool viscous          = config->GetViscous();
+  const bool ideal_gas        = (config->GetKind_FluidModel() == STANDARD_AIR) ||
+                                (config->GetKind_FluidModel() == IDEAL_GAS);
+  const bool rans = ((config->GetKind_Solver() == RANS )|| (config->GetKind_Solver() == DISC_ADJ_RANS));
+
   /*--- Initialize the source residual to zero ---*/
   for (iVar = 0; iVar < nVar; iVar++) Residual[iVar] = 0.0;
   
@@ -3070,7 +3076,27 @@ void CAdjEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_cont
       
       /*--- Set coordinate ---*/
       numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
-      
+
+
+// mskim. Adjoint Axisymmetric implementation
+      /*--- Set primitive variables for viscous terms and/or generalised source ---*/
+      if (viscous) numerics->SetPrimitive(node[iPoint]->GetPrimitive(), NULL);
+
+      /*--- Set secondary variables for generalised source ---*/
+      if (!ideal_gas) numerics->SetSecondary(node[iPoint]->GetSecondary(), node[iPoint]->GetSecondary());
+
+      if (viscous) {
+        /*--- Set gradient of primitive variables ---*/
+        numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), NULL);
+
+        /*--- Set turbulence kinetic energy ---*/
+        if (rans){
+          numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+        }
+      }
+// mskim-end
+
+
       /*--- Compute Source term Residual ---*/
       numerics->ComputeResidual(Residual, Jacobian_i, config);
       

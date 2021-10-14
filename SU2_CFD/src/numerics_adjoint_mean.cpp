@@ -1590,6 +1590,33 @@ void CSourceAxisymmetric_AdjFlow::ComputeResidual(su2double *val_residual, su2do
   Jacobian_Axisymmetric[3][2] = Gamma*U_i[3]/U_i[0] - 1/2*(Gamma-1)*( (U_i[1]*U_i[1]+U_i[2]*U_i[2])/(U_i[0]*U_i[0]) + 2*U_i[2]*U_i[2]/(U_i[0]*U_i[0]) );
   Jacobian_Axisymmetric[3][3] = Gamma*U_i[2]/U_i[0];
   
+  
+// mskim. Adjoint Axisymmetric implementation
+  if (config->GetAxisymmetric()){
+    su2double laminar_viscosity_i    = V_i[nDim+5];
+    su2double eddy_viscosity_i       = V_i[nDim+6];
+    su2double total_viscosity_i = laminar_viscosity_i + eddy_viscosity_i;
+
+    su2double u = U_i[1]/U_i[0];
+    su2double v = U_i[2]/U_i[0];
+
+    if ((config->GetKind_Turb_Model() == NONE)) { turb_ke_i = 0.0; }
+
+    // Jacobian[0][..] -= 0
+    // Jacobian[1][..] -= 0
+    Jacobian_Axisymmetric[2][0] -= 2*yinv*total_viscosity_i*v/U_i[0];
+    Jacobian_Axisymmetric[2][1] -= 0;
+    Jacobian_Axisymmetric[2][2] -= -2*yinv*total_viscosity_i/U_i[0];
+    Jacobian_Axisymmetric[2][3] -= 0;
+
+    Jacobian_Axisymmetric[3][0] -= total_viscosity_i/U_i[0]*(-u*(PrimVar_Grad_i[2][0]+PrimVar_Grad_i[1][1]) - TWO3*v*(2*PrimVar_Grad_i[2][1]-PrimVar_Grad_i[1][0]) + TWO3*2*yinv*v*v);
+    Jacobian_Axisymmetric[3][1] -= total_viscosity_i/U_i[0]*(PrimVar_Grad_i[2][0]+PrimVar_Grad_i[1][1]);
+    Jacobian_Axisymmetric[3][2] -= TWO3*total_viscosity_i*( (2*PrimVar_Grad_i[2][1]-PrimVar_Grad_i[1][0])/U_i[0] - 2*yinv*v/U_i[0] + turb_ke_i);
+    Jacobian_Axisymmetric[3][3] -= 0;
+  }
+
+
+
   for (int iVar=0; iVar<4; iVar++)
     for (int jVar=0; jVar<4; jVar++)
       Jacobian_Axisymmetric[iVar][jVar] *= yinv*Volume;

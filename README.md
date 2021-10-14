@@ -11,12 +11,13 @@ To clear output log, some debugging outputs are eliminated.
 See below pull requests.<br />
 Viscous axisymmetric source term: https://github.com/su2code/SU2/pull/1106/<br />
 Axisymmetric source term bug in energy equation: https://github.com/su2code/SU2/pull/1366<br />
+Axisymmetric source term sign bug: https://github.com/su2code/SU2/pull/1366/<br />
 SST 2D axisymmetric source term: https://github.com/su2code/SU2/pull/1195<br />
 SST Jacobian bug: https://github.com/su2code/SU2/pull/491<br />
 Axisymmetric source term implicit decision: https://github.com/su2code/SU2/pull/456<br />
 Viscous Jacobian sign error: https://github.com/su2code/SU2/pull/612<br />
 Symmetric and Euler BC issues: https://github.com/su2code/SU2/pull/657, https://github.com/su2code/SU2/pull/740<br />
-::These modifications make another problem at symmetric axis, so these are available only when AXISYMMETRIC= NO.
+::These modifications may make another problem at symmetric axis, so these are manually available only when AXISYMMETRIC= NO.<br />
 Turbulent viscosity calculation in SST: https://github.com/su2code/SU2/pull/905<br />
 
 Add missing term to strain magnitude for 2D: https://github.com/su2code/SU2/pull/670<br />
@@ -24,10 +25,11 @@ Periodic Green Gauss bug: https://github.com/su2code/SU2/pull/496<br />
 Incompressible outlet BC and 'Set_MPI_AxiAuxVar_Gradient': SU2 v6<br />
 Fixed Coord_j for boundary viscous numerics: https://github.com/su2code/SU2/pull/1189<br />
 
-CFL reduction factors has been modified to be available for Discrete Adjoint not only Continuous Adjoint.
-Low Mach Pre-conditioning is available and modified as version 6.
+CFL reduction factors has been modified to be available for Discrete Adjoint not only Continuous Adjoint.<br />
+Low Mach Pre-conditioning is available and modified as version 6. (not recommemded to use)
 
 2D Axisymmetric SA equation is now conducted with the help of S. Heo.
+Jacobian of axisymmetric source term for adjoint calculation in compressible N-S and SA equations are added to see how affects adjoint solution. (need to validate)
 
 Currently, only compressible flow is guaranteed.
 
